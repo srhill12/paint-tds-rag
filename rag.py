@@ -99,13 +99,15 @@ def _product_label(ref) -> str:
     return ""
 
 
-def run_baseline(question: str, resources) -> dict:
+def run_baseline(question: str, resources, router_v2: bool | None = None) -> dict:
     answer = resources.chain.invoke(question)
     source_docs = resources.retriever.invoke(question)
-    return build_response(question, answer, source_docs)
+    return build_response(question, answer, source_docs, router_v2=router_v2)
 
 
-def run_product_aware(question: str, resources) -> dict:
+def run_product_aware(
+    question: str, resources, router_v2: bool | None = None
+) -> dict:
     index = get_index()
     plan = index.plan(question)
     product_label = ""
@@ -131,7 +133,7 @@ def run_product_aware(question: str, resources) -> dict:
             PROMPT_TEMPLATE_PRODUCT_AWARE,
         )
 
-    result = build_response(question, answer, source_docs)
+    result = build_response(question, answer, source_docs, router_v2=router_v2)
     result["product_label"] = product_label
     result["query_action"] = plan.action
     result["resolved_sku"] = plan.ref.sku
@@ -139,16 +141,21 @@ def run_product_aware(question: str, resources) -> dict:
     return result
 
 
-def run_query(question: str, resources, retrieval_mode: str | None = None) -> dict:
+def run_query(
+    question: str,
+    resources,
+    retrieval_mode: str | None = None,
+    router_v2: bool | None = None,
+) -> dict:
     """Run retrieval and generation; return a response object for UI and eval."""
     mode = retrieval_mode or RETRIEVAL_MODE
     if resources is None:
         raise ValueError("RAG resources are not loaded")
     if mode == "baseline":
-        result = run_baseline(question, resources)
+        result = run_baseline(question, resources, router_v2=router_v2)
         result.setdefault("product_label", "")
         result.setdefault("query_action", "unfiltered")
         result.setdefault("resolved_sku", None)
         result.setdefault("resolved_kind", None)
         return result
-    return run_product_aware(question, resources)
+    return run_product_aware(question, resources, router_v2=router_v2)

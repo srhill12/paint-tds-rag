@@ -32,6 +32,7 @@ from config import (  # noqa: E402
     RESULTS_DIR,
     RETRIEVAL_MODE,
     RETRIEVAL_MODES,
+    ROUTER_V2_ENABLED,
     SEED,
     TEMPERATURE,
     TESTSET_PATH,
@@ -158,11 +159,21 @@ def format_frac(item: dict) -> str:
     return f"{passed}/{total}"
 
 
-def print_report(summary: dict, prior_temperature: float, retrieval_mode: str = "") -> None:
+def print_report(
+    summary: dict,
+    prior_temperature: float,
+    retrieval_mode: str = "",
+    router_v2: bool | None = None,
+    testset_path: str = "",
+) -> None:
     print(f"prior_temperature: {prior_temperature} -> temperature: {TEMPERATURE}")
     print(f"seed: {SEED}  top_k: {TOP_K}  model: {CHAT_MODEL}")
     if retrieval_mode:
         print(f"retrieval_mode: {retrieval_mode}")
+    if router_v2 is not None:
+        print(f"router_v2: {'on' if router_v2 else 'off'}")
+    if testset_path:
+        print(f"testset: {testset_path}")
     print()
     print("Per-category results (counts / denominators):")
     for category, metrics in summary["per_category"].items():
@@ -217,9 +228,23 @@ def main() -> None:
         default=TESTSET_PATH,
         help="JSONL testset path (default: eval/testset_v1.jsonl)",
     )
+    parser.add_argument(
+        "--router-v2",
+        choices=("on", "off"),
+        default=None,
+        help="Enable router v2 terms (default: on for product_aware, else config)",
+    )
     args = parser.parse_args()
     draft_mode = bool(args.draft or args.draft_out)
     retrieval_mode = args.mode or RETRIEVAL_MODE
+    if args.router_v2 == "on":
+        router_v2 = True
+    elif args.router_v2 == "off":
+        router_v2 = False
+    elif retrieval_mode == "product_aware":
+        router_v2 = True
+    else:
+        router_v2 = bool(ROUTER_V2_ENABLED)
     testset_path = args.testset
     if not testset_path.is_absolute():
         testset_path = ROOT / testset_path
@@ -253,7 +278,10 @@ def main() -> None:
     per_question = []
     for row in rows:
         result = run_query(
-            row["question"], resources, retrieval_mode=retrieval_mode
+            row["question"],
+            resources,
+            retrieval_mode=retrieval_mode,
+            router_v2=router_v2,
         )
         docs = result.get("source_docs") or []
         skus = source_skus(docs)
@@ -319,13 +347,25 @@ def main() -> None:
         "corpus_retrieved_date": corpus_retrieved_date(MANIFEST_PATH),
         "timestamp": timestamp,
         "retrieval_mode": retrieval_mode,
+        "router_v2": router_v2,
+        "testset_path": str(
+            testset_path.relative_to(ROOT)
+            if testset_path.is_relative_to(ROOT)
+            else testset_path
+        ),
         "draft": draft_mode,
         "n_questions": len(rows),
         "metrics": metrics,
     }
 
     print()
-    print_report(metrics, PRIOR_TEMPERATURE, retrieval_mode=retrieval_mode)
+    print_report(
+        metrics,
+        PRIOR_TEMPERATURE,
+        retrieval_mode=retrieval_mode,
+        router_v2=router_v2,
+        testset_path=summary["testset_path"],
+    )
 
     if draft_mode and draft_out_dir is None:
         print("\nDraft run: nothing written to eval/results/.")

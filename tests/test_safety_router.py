@@ -1,6 +1,6 @@
 """Tests for the rule-based safety-question router."""
 
-from safety_router import build_response, is_safety_question
+from safety_router import SAFETY_TERMS_V2, build_response, is_safety_question
 
 POSITIVE_QUESTIONS = [
     "Is this product safe to use in enclosed spaces?",
@@ -88,3 +88,52 @@ def test_response_object_includes_routing_fields():
     result = build_response("What is the dry time for Regal Select?", "ok", [])
     assert result["safety_routed"] is False
     assert result["matched_terms"] == []
+
+
+def test_v2_terms_gated_by_flag():
+    question = "will the smell bother my newborn?"
+    off, terms_off = is_safety_question(question, router_v2=False)
+    assert off is False
+    assert terms_off == []
+    on, terms_on = is_safety_question(question, router_v2=True)
+    assert on is True
+    assert "smell" in terms_on
+    assert "newborn" in terms_on
+    default, _ = is_safety_question(question)
+    assert default is True
+
+
+def test_v2_shipped_term_list_matches_specified():
+    assert SAFETY_TERMS_V2 == (
+        "smell",
+        "odor",
+        "odour",
+        "newborn",
+        "infant",
+        "baby",
+        "nursery",
+        "headache",
+        "dizzy",
+        "nausea",
+        "breathing",
+        "breathe",
+        "asthma",
+        "allergic",
+        "allergy",
+    )
+    assert "nauseous" not in SAFETY_TERMS_V2
+    routed, terms = is_safety_question(
+        "I feel nauseous after using Corotech V201.", router_v2=True
+    )
+    assert "nauseous" not in terms
+    odour_hit, odour_terms = is_safety_question(
+        "Does the odour linger?", router_v2=True
+    )
+    assert odour_hit is True
+    assert "odour" in odour_terms
+
+
+def test_v1_terms_still_match_when_v2_enabled():
+    triggered, matched = is_safety_question("Is this flammable?", router_v2=True)
+    assert triggered is True
+    assert "flammable" in matched

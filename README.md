@@ -212,12 +212,22 @@ over-trigger on words like "safety" in product names if that term is
 added to the list. Both cases are documented in 
 `tests/test_safety_router.py`.
 
-Router v2 terms (smell, odor, newborn, infant, baby, and related 
-health words) are measured on a holdout set drafted after the 
-baseline paraphrased misses. Those baseline questions informed the 
-new terms, so they are not used to claim v2 improvement. Enable v2 
-only after `eval/testset_router_holdout.jsonl` is verified, and 
-report v1 and holdout results with the flag on and off.
+Router v2 is enabled for the app and for product_aware eval. The 
+shipped v2 list is exactly: smell, odor, odour, newborn, infant, 
+baby, nursery, headache, dizzy, nausea, breathing, breathe, asthma, 
+allergic, allergy.
+
+Measured tradeoff on product_aware runs with the corrected list: 
+testset v1 paraphrased safety routed 0/3 to 3/3 and safety routed 5/8 
+to 8/8, with safety_negative not_routed remaining 5/5. On the holdout, 
+safety routed 0/8 to 7/8 (hold-saf-05 uses "nauseous", which is not in 
+the shipped list) and safety_negative not_routed 4/4 to 0/4 (all four 
+false positives). v2 is on because a false positive adds an SDS notice 
+but still returns the TDS answer, whereas a false negative can return 
+safety guidance from the wrong document. The holdout was drafted in 
+the same session as the v2 list, so it is a check on false positives 
+and obvious misses, not proof of real-world recall (see 
+`eval/README.md`).
 
 ---
 

@@ -86,3 +86,20 @@ Observed failures and notable behavior, recorded as found. Each finding links to
 - Source-correct accuracy (value attested by the target product's chunk): 0 of 16 answerable at draft baseline.
 - Implication: numeric answer accuracy alone overstates correctness. The eval reports both, and source-correct accuracy is the primary metric.
 - Status: Draft figures, pending ground-truth verification. Retrieval of the target sheet is the bottleneck addressed by Phase 4.
+
+## F-007: Router v2 term list drifted from the specified list
+
+- Date: 2026-10-07
+- Observed: The first v2 implementation added "nauseous" (not in the specified list) and dropped "odour". SAFETY_TERMS v1 was not edited. The holdout row hold-saf-05 ("I feel nauseous...") routed only because of the extra term.
+- How caught: The specified list is smell, odor, odour, newborn, infant, baby, nursery, headache, dizzy, nausea, breathing, breathe, asthma, allergic, allergy. Review against that list showed the two-term deviation before shipping. Whole-word matching does not treat "nauseous" as "nausea".
+- Corrected: Restored the specified list, defaulted ROUTER_V2_ENABLED on, and reran product_aware eval with v2 on. hold-saf-05 no longer routes (holdout safety 7/8). "odour" is in the shipped list. Holdout safety_negative false positives (odor, smell, baby, nursery) remain 4/4; those terms were specified and were not removed.
+- Status: Closed. Shipped list matches the specified list (`test_v2_shipped_term_list_matches_specified`).
+
+## F-008: Family question without spec intent answered about a different product line
+
+- Date: 2026-10-07
+- Query: "Does ben Interior advertise a low smell formula?" (holdout hold-sneg-02)
+- Observed: Answer was "Yes, SUPER HIDE ZERO VOC 356/355 advertise low odor." The question named the ben family; the answer described Super Hide products and opened with "Yes," which reads as answering for ben.
+- Cause: resolve_product returned family(ben). Without spec intent, product_aware mode falls back to unfiltered retrieval by design, so another product line's marketing claim was retrieved and presented.
+- Risk: Moderate. A product claim attributed to the wrong line by implication.
+- Status: Open, documented as a known limitation. Candidate fix: for family references without spec intent, restrict retrieval to the family's SKUs instead of falling back to unfiltered search.

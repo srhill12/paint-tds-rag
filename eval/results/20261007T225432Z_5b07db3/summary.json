@@ -1,0 +1,257 @@
+{
+  "run_id": "20261007T225432Z_5b07db3",
+  "git_commit": "5b07db36c3c1d76091a48d32d9ecb4e82c1141c9",
+  "model_name": "gemma3:4b",
+  "model_digest": "aa1cd77181b3",
+  "embedding_model": "nomic-embed-text",
+  "embedding_digest": "0a109f422b47",
+  "temperature": 0.0,
+  "prior_temperature": 0.1,
+  "seed": 42,
+  "top_k": 4,
+  "chunk_size": 500,
+  "chunk_overlap": 50,
+  "testset_version": "v1",
+  "corpus_retrieved_date": "2026-10-07",
+  "timestamp": "20261007T225432Z",
+  "retrieval_mode": "product_aware",
+  "router_v2": true,
+  "testset_path": "eval/testset_v1.jsonl",
+  "draft": false,
+  "n_questions": 62,
+  "metrics": {
+    "per_category": {
+      "answerable": {
+        "n": 16,
+        "passed": {
+          "passed": 11,
+          "total": 16
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 16
+        },
+        "numeric_match": {
+          "passed": 11,
+          "total": 16
+        },
+        "citation": {
+          "passed": 16,
+          "total": 16
+        },
+        "top1_match": {
+          "passed": 16,
+          "total": 16
+        },
+        "source_correct": {
+          "passed": 12,
+          "total": 12
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 12
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 12
+        }
+      },
+      "unanswerable": {
+        "n": 8,
+        "passed": {
+          "passed": 5,
+          "total": 8
+        },
+        "hedged": {
+          "passed": 1,
+          "total": 8
+        },
+        "decline": {
+          "passed": 6,
+          "total": 8
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 0
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 0
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 2
+        }
+      },
+      "confusion": {
+        "n": 16,
+        "passed": {
+          "passed": 16,
+          "total": 16
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 16
+        },
+        "wrong_product_rate": {
+          "passed": 0,
+          "total": 16
+        },
+        "expected_in_topk": {
+          "passed": 16,
+          "total": 16
+        },
+        "top1_match": {
+          "passed": 16,
+          "total": 16
+        },
+        "source_correct": {
+          "passed": 16,
+          "total": 16
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 16
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 16
+        }
+      },
+      "family": {
+        "n": 4,
+        "passed": {
+          "passed": 4,
+          "total": 4
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 4
+        },
+        "asks_which_product": {
+          "passed": 4,
+          "total": 4
+        },
+        "numeric_specification": {
+          "passed": 0,
+          "total": 4
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 0
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 0
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 0
+        }
+      },
+      "underspecified": {
+        "n": 5,
+        "passed": {
+          "passed": 5,
+          "total": 5
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 5
+        },
+        "asks_which_product": {
+          "passed": 5,
+          "total": 5
+        },
+        "numeric_specification": {
+          "passed": 0,
+          "total": 5
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 0
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 0
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 0
+        }
+      },
+      "safety": {
+        "n": 8,
+        "passed": {
+          "passed": 8,
+          "total": 8
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 8
+        },
+        "safety_routed": {
+          "passed": 8,
+          "total": 8
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 0
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 0
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 1
+        }
+      },
+      "safety_negative": {
+        "n": 5,
+        "passed": {
+          "passed": 5,
+          "total": 5
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 5
+        },
+        "not_routed": {
+          "passed": 5,
+          "total": 5
+        },
+        "source_correct": {
+          "passed": 2,
+          "total": 2
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 2
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 2
+        }
+      }
+    },
+    "hedged_count": {
+      "passed": 1,
+      "total": 62
+    },
+    "unsupported_value_rate": {
+      "passed": 0,
+      "total": 33,
+      "items": []
+    },
+    "misattributed_values": [],
+    "attribution_rate": {
+      "passed": 32,
+      "total": 33
+    },
+    "paraphrased_safety": {
+      "routed": 3,
+      "total": 3
+    }
+  }
+}

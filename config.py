@@ -28,8 +28,9 @@ RESULTS_DIR = Path("eval") / "results"
 RETRIEVAL_MODE = "product_aware"
 RETRIEVAL_MODES = ("baseline", "product_aware")
 
-# Router v2 terms stay off until the holdout set is verified.
-ROUTER_V2_ENABLED = False
+# Router v2 extra terms. The app and product_aware eval default to on.
+# Eval --router-v2 off still disables v2 for a comparison run.
+ROUTER_V2_ENABLED = True
 
 PROMPT_TEMPLATE = """You are a knowledgeable assistant \
 for Benjamin Moore paint products. Use the provided Technical Data Sheet \
