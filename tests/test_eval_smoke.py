@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
 from eval.scoring import (
     CATEGORIES,
     MISATTRIBUTED,
+    NOT_APPLICABLE,
     SOURCE_CORRECT,
     TESTSET_FIELDS,
     asks_which_product,
@@ -61,14 +63,20 @@ def test_testset_schema_and_counts():
     assert rows, "testset is empty"
     counts = Counter()
     ids = []
+    unverified = []
     for row in rows:
         missing = [field for field in TESTSET_FIELDS if field not in row]
         assert not missing, f"{row.get('id')} missing {missing}"
         assert row["category"] in CATEGORIES
-        assert row["verified_by"] == ""
+        verified = str(row.get("verified_by") or "").strip()
+        if not verified:
+            unverified.append(row.get("id"))
+        else:
+            assert re.fullmatch(r"Steven Hill \d{4}-\d{2}-\d{2}", verified), row.get("id")
         assert isinstance(row["acceptable_skus"], list)
         ids.append(row["id"])
         counts[row["category"]] += 1
+    assert not unverified, f"unverified ids: {unverified}"
     assert len(ids) == len(set(ids))
     assert counts == TARGET_COUNTS
     assert sum(TARGET_COUNTS.values()) == 62
@@ -111,6 +119,65 @@ def test_decline_matches_system_prompt_phrasing():
         "The provided documents do not contain pricing information."
     )
     assert not is_decline("N549 has a VOC content of less than 50 g/L.")
+
+
+# Product-aware una-01 answer from eval/results/20261007T204608Z_67c76a9.
+UNA01_PRODUCT_AWARE_ANSWER = (
+    "Product: Regal® Select Premium Interior Paint & Primer Eggshell Finish N549 (N549)\n"
+    "The Technical Data Sheet does not list the price of Regal® Select \uf0aa Eggshell N549. "
+    "It states the weight per gallon is 11.5 lbs."
+)
+
+
+def test_una01_does_not_list_is_hedged_decline():
+    assert is_decline(UNA01_PRODUCT_AWARE_ANSWER)
+    row = {
+        "category": "unanswerable",
+        "expected_value": None,
+        "expected_unit": None,
+        "expected_sku": "",
+        "acceptable_skus": [],
+        "notes": "",
+    }
+    scored = score_row(
+        row,
+        UNA01_PRODUCT_AWARE_ANSWER,
+        ["N549"],
+        ["Weight Per Gallon\n11.5 lbs."],
+        False,
+    )
+    assert scored["decline"] is True
+    assert any("11.5" in q and "lb" in q.lower() for q in scored["quantities"])
+    assert scored["hedged"] is True
+    assert scored["passed"] is False
+    assert scored["failure_reason"] == "hedged"
+
+
+def test_lbs_per_gallon_attested_by_sheet_form():
+    """conf-07a: '3.29 lbs. per gallon' is VOC, attested by '3.29 Lbs./Gallon'."""
+    answer = (
+        "The VOC content of Corotech Alkyd Shop Coat Primer V133 is "
+        "394 grams per liter or 3.29 lbs. per gallon."
+    )
+    chunks = ["394 Grams/Liter \n3.29 Lbs./Gallon"]
+    qs = extract_quantities(answer)
+    voc_lbs = [q for q in qs if "3.29" in q.raw]
+    assert voc_lbs, f"expected to extract 3.29 lbs per gallon, got {[q.raw for q in qs]}"
+    assert voc_lbs[0].family == "voc_g_l"
+    decisions = value_support_decisions(
+        answer, chunks, chunk_skus=["V133"], expected_sku="V133"
+    )
+    hit = next(d for d in decisions if "3.29" in d["value"])
+    assert hit["supported"] is True
+    assert hit["source"] == SOURCE_CORRECT
+    assert "V133" in hit["attesting_skus"]
+
+
+def test_lbs_per_gallon_unsupported_when_absent_from_chunks():
+    answer = "VOC is 3.29 lbs. per gallon."
+    chunks = ["Weight Per Gallon\n11.5 lbs."]
+    missing = unsupported_values(answer, chunks)
+    assert any("3.29" in item for item in missing), missing
 
 
 def test_hedged_answer_fails_every_category():
@@ -230,6 +297,49 @@ def test_f004_pattern_value_is_misattributed():
     }
     assert support["2hours"]["source"] == MISATTRIBUTED
     assert support["8hours"]["source"] == MISATTRIBUTED
+
+
+def test_source_labels_not_applicable_without_expected_sku():
+    """No expected_sku outside family/underspecified: attested values are N/A."""
+    row = {
+        "category": "unanswerable",
+        "expected_value": None,
+        "expected_unit": None,
+        "expected_sku": "",
+        "acceptable_skus": [],
+        "notes": "",
+    }
+    scored = score_row(
+        row,
+        "The documents do not contain pricing. VOC is < 50 g/L.",
+        ["N549"],
+        ["VOC < 50 g/L"],
+        False,
+    )
+    assert scored["has_source_correct"] is False
+    assert scored["has_misattributed"] is False
+    assert scored["value_support"]
+    assert scored["value_support"][0]["source"] == NOT_APPLICABLE
+    assert scored["source_correct_values"] == []
+    assert scored["misattributed_values"] == []
+
+    family = {
+        "category": "family",
+        "expected_value": None,
+        "expected_unit": None,
+        "expected_sku": "",
+        "acceptable_skus": [],
+        "notes": "",
+    }
+    family_scored = score_row(
+        family,
+        "Regal Select can be recoated in 4 hours.",
+        ["N400"],
+        ["To Recoat: 4 Hours"],
+        False,
+    )
+    assert family_scored["has_misattributed"] is True
+    assert family_scored["value_support"][0]["source"] == MISATTRIBUTED
 
 
 def test_value_attested_by_target_sku_is_source_correct():

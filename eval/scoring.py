@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 
+SCORER_VERSION = "2026-10-07-lbs-per-gallon"
+
 TESTSET_FIELDS = (
     "id",
     "category",
@@ -50,6 +52,7 @@ DECLINE_PATTERNS = (
     r"do(?:es)? not have (?:that |this |the )?(?:information|data)",
     r"isn'?t (?:in|available in) the (?:provided |retrieved )?(?:context|documents?|excerpts?)",
     r"not available in the (?:provided |retrieved )?(?:context|documents?|excerpts?)",
+    r"does not list",
 )
 
 CLARIFY_PRODUCT_PATTERNS = (
@@ -87,7 +90,11 @@ NUMBER_WITH_UNIT_PATTERN = re.compile(
         grams?\s*/\s*liters?|
         grams?\s+per\s+lit(?:er|re)|
         lbs?\.?\s*/\s*gal(?:lon)?s?|
-        pounds?\s+per\s+gallon|
+        lbs?\.?\s+per\s+gal(?:lon)?s?|
+        pounds?\.?\s*/\s*gal(?:lon)?s?|
+        pounds?\.?\s+per\s+gal(?:lon)?s?|
+        lbs?\.?|
+        pounds?|
         sq\.?\s*ft\.?(?:\s*/\s*gal(?:lon)?)?|
         square\s+feet(?:\s+per\s+gallon)?|
         hours?|hrs?|
@@ -122,13 +129,18 @@ UNIT_FAMILY_DURATION = "duration_hours"
 UNIT_FAMILY_TEMP = "temp_f"
 UNIT_FAMILY_PERCENT = "percent"
 UNIT_FAMILY_GLOSS = "gloss"
+UNIT_FAMILY_MASS = "mass_lbs"
 
 _UNIT_ALIASES: tuple[tuple[re.Pattern[str], str, float], ...] = (
     (re.compile(r"^g\s*/\s*l$", re.I), UNIT_FAMILY_VOC, 1.0),
     (re.compile(r"^grams?\s*/\s*liters?$", re.I), UNIT_FAMILY_VOC, 1.0),
     (re.compile(r"^grams?\s+per\s+lit(?:er|re)$", re.I), UNIT_FAMILY_VOC, 1.0),
     (re.compile(r"^lbs?\.?\s*/\s*gal(?:lon)?s?$", re.I), UNIT_FAMILY_VOC, LBS_PER_GAL_TO_G_L),
-    (re.compile(r"^pounds?\s+per\s+gallon$", re.I), UNIT_FAMILY_VOC, LBS_PER_GAL_TO_G_L),
+    (re.compile(r"^lbs?\.?\s+per\s+gal(?:lon)?s?$", re.I), UNIT_FAMILY_VOC, LBS_PER_GAL_TO_G_L),
+    (re.compile(r"^pounds?\.?\s*/\s*gal(?:lon)?s?$", re.I), UNIT_FAMILY_VOC, LBS_PER_GAL_TO_G_L),
+    (re.compile(r"^pounds?\.?\s+per\s+gal(?:lon)?s?$", re.I), UNIT_FAMILY_VOC, LBS_PER_GAL_TO_G_L),
+    (re.compile(r"^lbs?\.?$", re.I), UNIT_FAMILY_MASS, 1.0),
+    (re.compile(r"^pounds?$", re.I), UNIT_FAMILY_MASS, 1.0),
     (re.compile(r"^sq\.?\s*ft\.?(?:\s*/\s*gal(?:lon)?)?$", re.I), UNIT_FAMILY_COVERAGE, 1.0),
     (re.compile(r"^square\s+feet(?:\s+per\s+gallon)?$", re.I), UNIT_FAMILY_COVERAGE, 1.0),
     (re.compile(r"^hours?$", re.I), UNIT_FAMILY_DURATION, 1.0),
@@ -493,6 +505,24 @@ def expected_in_topk(retrieved_skus: Iterable[str], expected_sku: str) -> bool:
 SOURCE_CORRECT = "source_correct"
 MISATTRIBUTED = "misattributed"
 UNSUPPORTED = "unsupported"
+NOT_APPLICABLE = "not_applicable"
+
+FAMILY_UNDERSPECIFIED = {"family", "underspecified"}
+
+
+def source_attribution_applies(row: dict) -> bool:
+    """Whether source_correct / misattributed labels apply to this row.
+
+    Family and underspecified always get those labels (a volunteered spec from
+    some SKU is still misattributed). Other categories only get them when a
+    target SKU exists; otherwise attested values are not_applicable.
+    """
+    category = row.get("category") or ""
+    if category in FAMILY_UNDERSPECIFIED:
+        return True
+    expected = str(row.get("expected_sku") or "").strip()
+    acceptable = [s for s in (row.get("acceptable_skus") or []) if str(s).strip()]
+    return bool(expected or acceptable)
 
 
 def target_sku_set(
@@ -510,11 +540,14 @@ def classify_value_source(
     attesting_skus: Iterable[str],
     expected_sku: str = "",
     acceptable_skus: Optional[Iterable[str]] = None,
+    apply_source_labels: bool = True,
 ) -> str:
-    """Label a value as source_correct, misattributed, or unsupported."""
+    """Label a value as source_correct, misattributed, unsupported, or N/A."""
     attested = [s for s in attesting_skus]
     if not attested:
         return UNSUPPORTED
+    if not apply_source_labels:
+        return NOT_APPLICABLE
     targets = target_sku_set(expected_sku, acceptable_skus)
     attested_norm = {s.strip().upper() for s in attested if s and str(s).strip()}
     if targets and attested_norm & targets:
@@ -528,6 +561,7 @@ def value_support_decisions(
     chunk_skus: Optional[Iterable[str]] = None,
     expected_sku: str = "",
     acceptable_skus: Optional[Iterable[str]] = None,
+    apply_source_labels: bool = True,
 ) -> list[dict[str, Any]]:
     """For each number-with-unit in the answer, which chunks/SKUs attest it."""
     chunks = list(chunk_texts)
@@ -546,7 +580,12 @@ def value_support_decisions(
             if any(quantity_attested(item, chunk_q) for chunk_q in quantities):
                 attesting_skus.append(sku)
                 matching_chunks.append(chunk)
-        source = classify_value_source(attesting_skus, expected_sku, acceptable_skus)
+        source = classify_value_source(
+            attesting_skus,
+            expected_sku,
+            acceptable_skus,
+            apply_source_labels=apply_source_labels,
+        )
         decisions.append(
             {
                 "value": item.raw,
@@ -623,12 +662,14 @@ def score_row(
     clarify = asks_which_product(answer)
     quantities = extract_quantities(answer)
     hedged = decline and bool(quantities)
+    apply_labels = source_attribution_applies(row)
     support = value_support_decisions(
         answer,
         chunk_texts,
         chunk_skus=retrieved_skus,
         expected_sku=expected_sku,
         acceptable_skus=acceptable,
+        apply_source_labels=apply_labels,
     )
     missing_values = [item["value"] for item in support if item["source"] == UNSUPPORTED]
     source_correct_values = [
@@ -708,4 +749,156 @@ def score_row(
         "has_unsupported": bool(missing_values),
         "has_value": bool(quantities),
         "attribution": attributed if quantities else None,
+    }
+
+
+def _frac(passed: int, total: int) -> dict[str, int]:
+    return {"passed": passed, "total": total}
+
+
+def summarize(rows: list[dict], scored: list[dict]) -> dict:
+    by_category: dict[str, dict] = {}
+    hedged_count = 0
+    answers_with_value = 0
+    answers_with_unsupported = 0
+    unsupported_list: list[dict] = []
+    misattributed_list: list[dict] = []
+    attributed = 0
+    attribution_total = 0
+    paraphrased_total = 0
+    paraphrased_routed = 0
+
+    for row, result in zip(rows, scored):
+        category = row["category"]
+        bucket = by_category.setdefault(
+            category,
+            {
+                "n": 0,
+                "passed": 0,
+                "hedged": 0,
+                "numeric_match": 0,
+                "citation": 0,
+                "top1_match": 0,
+                "expected_in_topk": 0,
+                "wrong_top_sku": 0,
+                "decline": 0,
+                "asks_which_product": 0,
+                "safety_routed": 0,
+                "has_value": 0,
+                "unsupported": 0,
+                "source_correct": 0,
+                "misattributed": 0,
+                "source_label_n": 0,
+                "attribution": 0,
+                "attribution_n": 0,
+            },
+        )
+        bucket["n"] += 1
+        if result["passed"]:
+            bucket["passed"] += 1
+        if result["hedged"]:
+            bucket["hedged"] += 1
+            hedged_count += 1
+        if result["numeric_match"]:
+            bucket["numeric_match"] += 1
+        if result["citation"]:
+            bucket["citation"] += 1
+        if result["top1_match"]:
+            bucket["top1_match"] += 1
+        if result["expected_in_topk"]:
+            bucket["expected_in_topk"] += 1
+        if result["wrong_top_sku"]:
+            bucket["wrong_top_sku"] += 1
+        if result["decline"]:
+            bucket["decline"] += 1
+        if result["asks_which_product"]:
+            bucket["asks_which_product"] += 1
+        if result["safety_routed"]:
+            bucket["safety_routed"] += 1
+        if result["has_value"]:
+            bucket["has_value"] += 1
+            answers_with_value += 1
+            attribution_total += 1
+            bucket["attribution_n"] += 1
+            if result["attribution"]:
+                attributed += 1
+                bucket["attribution"] += 1
+            if source_attribution_applies(row):
+                bucket["source_label_n"] += 1
+        if result.get("has_source_correct"):
+            bucket["source_correct"] += 1
+        if result.get("has_misattributed"):
+            bucket["misattributed"] += 1
+            for item in result.get("misattributed_values") or []:
+                misattributed_list.append(
+                    {
+                        "id": row["id"],
+                        "value": item.get("value"),
+                        "attesting_skus": item.get("attesting_skus") or [],
+                    }
+                )
+        if result["unsupported_values"]:
+            bucket["unsupported"] += 1
+            answers_with_unsupported += 1
+            unsupported_list.append(
+                {
+                    "id": row["id"],
+                    "values": result["unsupported_values"],
+                }
+            )
+        if result["paraphrased_safety"]:
+            paraphrased_total += 1
+            if result["safety_routed"]:
+                paraphrased_routed += 1
+
+    per_category = {}
+    for category in CATEGORIES:
+        bucket = by_category.get(category, {"n": 0})
+        n = bucket.get("n", 0)
+        metrics = {
+            "n": n,
+            "passed": _frac(bucket.get("passed", 0), n),
+            "hedged": _frac(bucket.get("hedged", 0), n),
+        }
+        if category == "answerable":
+            metrics["numeric_match"] = _frac(bucket.get("numeric_match", 0), n)
+            metrics["citation"] = _frac(bucket.get("citation", 0), n)
+            metrics["top1_match"] = _frac(bucket.get("top1_match", 0), n)
+        elif category == "unanswerable":
+            metrics["decline"] = _frac(bucket.get("decline", 0), n)
+        elif category == "confusion":
+            metrics["wrong_product_rate"] = _frac(bucket.get("wrong_top_sku", 0), n)
+            metrics["expected_in_topk"] = _frac(bucket.get("expected_in_topk", 0), n)
+            metrics["top1_match"] = _frac(bucket.get("top1_match", 0), n)
+        elif category in {"family", "underspecified"}:
+            metrics["asks_which_product"] = _frac(
+                bucket.get("asks_which_product", 0), n
+            )
+            metrics["numeric_specification"] = _frac(bucket.get("has_value", 0), n)
+        elif category == "safety":
+            metrics["safety_routed"] = _frac(bucket.get("safety_routed", 0), n)
+        elif category == "safety_negative":
+            not_routed = n - bucket.get("safety_routed", 0)
+            metrics["not_routed"] = _frac(not_routed, n)
+        has_value = bucket.get("has_value", 0)
+        source_n = bucket.get("source_label_n", 0)
+        metrics["source_correct"] = _frac(bucket.get("source_correct", 0), source_n)
+        metrics["misattributed"] = _frac(bucket.get("misattributed", 0), source_n)
+        metrics["unsupported"] = _frac(bucket.get("unsupported", 0), has_value)
+        per_category[category] = metrics
+
+    return {
+        "per_category": per_category,
+        "hedged_count": _frac(hedged_count, len(rows)),
+        "unsupported_value_rate": {
+            "passed": answers_with_unsupported,
+            "total": answers_with_value,
+            "items": unsupported_list,
+        },
+        "misattributed_values": misattributed_list,
+        "attribution_rate": {"passed": attributed, "total": attribution_total},
+        "paraphrased_safety": {
+            "routed": paraphrased_routed,
+            "total": paraphrased_total,
+        },
     }

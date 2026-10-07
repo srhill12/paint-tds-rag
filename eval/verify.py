@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import subprocess
 import sys
@@ -122,7 +123,19 @@ def mark_verified(row: dict) -> dict:
 
 
 def main() -> None:
-    path = TESTSET_PATH if TESTSET_PATH.is_absolute() else ROOT / TESTSET_PATH
+    parser = argparse.ArgumentParser(
+        description="Verify Paint TDS eval testset rows against source PDFs"
+    )
+    parser.add_argument(
+        "--file",
+        type=Path,
+        default=TESTSET_PATH,
+        help="JSONL testset path (default: eval/testset_v1.jsonl)",
+    )
+    args = parser.parse_args()
+    path = args.file
+    if not path.is_absolute():
+        path = ROOT / path
     rows = load_rows(path)
     pending = [i for i, row in enumerate(rows) if not str(row.get("verified_by") or "").strip()]
     print(f"{len(pending)} unverified row(s) in {path}")

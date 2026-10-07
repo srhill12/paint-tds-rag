@@ -167,12 +167,15 @@ step is the one-time download of public TDS PDFs by
 The LLM is instructed to answer only from retrieved TDS excerpts. 
 The prompt explicitly tells the model to acknowledge when information 
 is not available rather than generating plausible-sounding but 
-unverified specifications. Staff rely on these answers for product 
-specifications such as VOC content, application temperatures, and 
-recoat times, where an invented value leads to a failed job or a wrong 
-recommendation to a customer. Technical Data Sheets describe product 
-performance and application. They are not a source for safety or 
-hazard questions, which belong with the product's Safety Data Sheet.
+unverified specifications. In product-aware mode the prompt also 
+requires every specification value to name the product and SKU it 
+comes from, and forbids presenting one product's value as another's. 
+Staff rely on these answers for product specifications such as VOC 
+content, application temperatures, and recoat times, where an invented 
+value leads to a failed job or a wrong recommendation to a customer. 
+Technical Data Sheets describe product performance and application. 
+They are not a source for safety or hazard questions, which belong 
+with the product's Safety Data Sheet.
 
 **3. Source transparency**
 Every answer displays the source TDS excerpts used for retrieval, so 
@@ -209,20 +212,56 @@ over-trigger on words like "safety" in product names if that term is
 added to the list. Both cases are documented in 
 `tests/test_safety_router.py`.
 
+Router v2 terms (smell, odor, newborn, infant, baby, and related 
+health words) are measured on a holdout set drafted after the 
+baseline paraphrased misses. Those baseline questions informed the 
+new terms, so they are not used to claim v2 improvement. Enable v2 
+only after `eval/testset_router_holdout.jsonl` is verified, and 
+report v1 and holdout results with the flag on and off.
+
 ---
 
 ## Known Limitations
 
-- **Semantic matching on SKU numbers:** Queries using product names 
-  ("Regal Select Interior") may retrieve semantically similar products 
-  rather than exact matches. Queries using SKU codes (e.g., "N549") 
-  improve precision.
+- **SKU codes do not improve precision in baseline retrieval:** On 
+  testset v1, "what is the voc content of n549?" retrieved 329/C329, 
+  TRC-035, HP04, and 34 Line, not N549. Among answerable rows that 
+  contained a numeric value, source-correct was 0/6 (every attested 
+  value came from another SKU's chunk). Product-aware mode filters 
+  to the resolved SKU before similarity search.
 - **Chunk boundary issues:** Some TDS specifications span page breaks 
   in ways that chunk splitting may separate. Increasing chunk size or 
   overlap would improve recall on multi-value specifications.
-- **Single-document retrieval:** The system retrieves the top 4 chunks 
-  globally. A future version could add product-specific filtering to 
-  constrain retrieval to the correct SKU before semantic search.
+
+## Product-aware retrieval
+
+The app uses `retrieval_mode = product_aware`. Eval `--mode baseline` 
+reproduces the original unfiltered search. `--mode product_aware` 
+runs the new path.
+
+`sources/families.csv` maps each TDS SKU to a derived family 
+(brand/line before finish descriptors), for example Regal Select, 
+Aura, ben, Super Hide, Corotech.
+
+`resolve_product` returns `single`, `family`, or `none`:
+
+- **single:** exact SKU (case-insensitive, whole-token, so V201 never 
+  matches CV201) or a product name that matches exactly one sheet. 
+  Retrieval is restricted to that SKU's chunks. The app renders 
+  `Product: <name> (<sku>)` from metadata, not from the model.
+- **family with spec intent, or none with spec intent or a deictic 
+  reference** ("this product", "it", "the paint"): do not answer. 
+  Ask which product, listing up to 10 matching products with SKUs. 
+  For `none`, ask the user to name the product or SKU.
+- **family or none without spec intent:** unfiltered retrieval, so 
+  pricing and other-brand questions can still be declined.
+
+The safety router still runs first. If it triggers, the SDS notice 
+is shown, then the rules above apply to the secondary context.
+
+Spec intent uses `SPEC_TERMS` in `product_index.py` (dry, dry time, 
+recoat, VOC, coverage, spread rate, application temperature, sheen, 
+gloss, solids, viscosity, flash point, thinning, film thickness).
 
 ---
 

@@ -33,10 +33,11 @@ def render_response(result: dict) -> None:
             f"[Search Benjamin Moore SDS documentation]({SDS_SEARCH_URL})"
         )
         st.success("Secondary context from Technical Data Sheet")
-        st.write(result["answer"])
     else:
         st.success("Answer")
-        st.write(result["answer"])
+    if result.get("product_label"):
+        st.markdown(f"**{result['product_label']}**")
+    st.write(result["answer"])
     render_sources(result["source_docs"])
 
 
@@ -75,9 +76,9 @@ def main() -> None:
         )
         st.stop()
 
-    chain, retriever = cached_load()
+    resources = cached_load()
 
-    if chain is None:
+    if resources is None:
         st.error("Failed to load RAG chain. Check that Ollama is running.")
         st.stop()
 
@@ -111,7 +112,7 @@ def main() -> None:
         if user_question.strip():
             with st.spinner("Searching TDS documents and generating answer..."):
                 try:
-                    result = run_query(user_question, chain, retriever)
+                    result = run_query(user_question, resources)
                     render_response(result)
                 except Exception as e:
                     st.error(f"Error generating answer: {e}")

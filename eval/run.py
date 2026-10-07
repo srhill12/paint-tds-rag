@@ -30,13 +30,15 @@ from config import (  # noqa: E402
     MANIFEST_PATH,
     PRIOR_TEMPERATURE,
     RESULTS_DIR,
+    RETRIEVAL_MODE,
+    RETRIEVAL_MODES,
     SEED,
     TEMPERATURE,
     TESTSET_PATH,
     TESTSET_VERSION,
     TOP_K,
 )
-from eval.scoring import CATEGORIES, TESTSET_FIELDS, score_row  # noqa: E402
+from eval.scoring import CATEGORIES, TESTSET_FIELDS, score_row, summarize  # noqa: E402
 from rag import load_vector_store, run_query  # noqa: E402
 
 
@@ -149,166 +151,17 @@ def source_scores(source_docs) -> list:
     return scores
 
 
-def _frac(passed: int, total: int) -> dict:
-    return {"passed": passed, "total": total}
-
-
-def summarize(rows: list[dict], scored: list[dict]) -> dict:
-    by_category: dict[str, dict] = {}
-    hedged_count = 0
-    answers_with_value = 0
-    answers_with_unsupported = 0
-    unsupported_list: list[dict] = []
-    misattributed_list: list[dict] = []
-    attributed = 0
-    attribution_total = 0
-    paraphrased_total = 0
-    paraphrased_routed = 0
-
-    for row, result in zip(rows, scored):
-        category = row["category"]
-        bucket = by_category.setdefault(
-            category,
-            {
-                "n": 0,
-                "passed": 0,
-                "hedged": 0,
-                "numeric_match": 0,
-                "citation": 0,
-                "top1_match": 0,
-                "expected_in_topk": 0,
-                "wrong_top_sku": 0,
-                "decline": 0,
-                "asks_which_product": 0,
-                "safety_routed": 0,
-                "has_value": 0,
-                "unsupported": 0,
-                "source_correct": 0,
-                "misattributed": 0,
-                "attribution": 0,
-                "attribution_n": 0,
-            },
-        )
-        bucket["n"] += 1
-        if result["passed"]:
-            bucket["passed"] += 1
-        if result["hedged"]:
-            bucket["hedged"] += 1
-            hedged_count += 1
-        if result["numeric_match"]:
-            bucket["numeric_match"] += 1
-        if result["citation"]:
-            bucket["citation"] += 1
-        if result["top1_match"]:
-            bucket["top1_match"] += 1
-        if result["expected_in_topk"]:
-            bucket["expected_in_topk"] += 1
-        if result["wrong_top_sku"]:
-            bucket["wrong_top_sku"] += 1
-        if result["decline"]:
-            bucket["decline"] += 1
-        if result["asks_which_product"]:
-            bucket["asks_which_product"] += 1
-        if result["safety_routed"]:
-            bucket["safety_routed"] += 1
-        if result["has_value"]:
-            bucket["has_value"] += 1
-            answers_with_value += 1
-            attribution_total += 1
-            bucket["attribution_n"] += 1
-            if result["attribution"]:
-                attributed += 1
-                bucket["attribution"] += 1
-        if result.get("has_source_correct"):
-            bucket["source_correct"] += 1
-        if result.get("has_misattributed"):
-            bucket["misattributed"] += 1
-            for item in result.get("misattributed_values") or []:
-                misattributed_list.append(
-                    {
-                        "id": row["id"],
-                        "value": item.get("value"),
-                        "attesting_skus": item.get("attesting_skus") or [],
-                    }
-                )
-        if result["unsupported_values"]:
-            bucket["unsupported"] += 1
-            answers_with_unsupported += 1
-            unsupported_list.append(
-                {
-                    "id": row["id"],
-                    "values": result["unsupported_values"],
-                }
-            )
-        if result["paraphrased_safety"]:
-            paraphrased_total += 1
-            if result["safety_routed"]:
-                paraphrased_routed += 1
-
-    per_category = {}
-    for category in CATEGORIES:
-        bucket = by_category.get(category, {"n": 0})
-        n = bucket.get("n", 0)
-        metrics = {
-            "n": n,
-            "passed": _frac(bucket.get("passed", 0), n),
-            "hedged": _frac(bucket.get("hedged", 0), n),
-        }
-        if category == "answerable":
-            metrics["numeric_match"] = _frac(bucket.get("numeric_match", 0), n)
-            metrics["citation"] = _frac(bucket.get("citation", 0), n)
-            metrics["top1_match"] = _frac(bucket.get("top1_match", 0), n)
-        elif category == "unanswerable":
-            metrics["decline"] = _frac(bucket.get("decline", 0), n)
-        elif category == "confusion":
-            metrics["wrong_product_rate"] = _frac(bucket.get("wrong_top_sku", 0), n)
-            metrics["expected_in_topk"] = _frac(bucket.get("expected_in_topk", 0), n)
-            metrics["top1_match"] = _frac(bucket.get("top1_match", 0), n)
-        elif category in {"family", "underspecified"}:
-            metrics["asks_which_product"] = _frac(
-                bucket.get("asks_which_product", 0), n
-            )
-            metrics["numeric_specification"] = _frac(bucket.get("has_value", 0), n)
-        elif category == "safety":
-            metrics["safety_routed"] = _frac(bucket.get("safety_routed", 0), n)
-        elif category == "safety_negative":
-            not_routed = n - bucket.get("safety_routed", 0)
-            metrics["not_routed"] = _frac(not_routed, n)
-        has_value = bucket.get("has_value", 0)
-        metrics["source_correct"] = _frac(bucket.get("source_correct", 0), has_value)
-        metrics["misattributed"] = _frac(bucket.get("misattributed", 0), has_value)
-        metrics["unsupported"] = _frac(bucket.get("unsupported", 0), has_value)
-        per_category[category] = metrics
-
-    unsupported_rate = {
-        "passed": answers_with_unsupported,
-        "total": answers_with_value,
-        "items": unsupported_list,
-    }
-    attribution_rate = {"passed": attributed, "total": attribution_total}
-
-    return {
-        "per_category": per_category,
-        "hedged_count": _frac(hedged_count, len(rows)),
-        "unsupported_value_rate": unsupported_rate,
-        "misattributed_values": misattributed_list,
-        "attribution_rate": attribution_rate,
-        "paraphrased_safety": {
-            "routed": paraphrased_routed,
-            "total": paraphrased_total,
-        },
-    }
-
-
 def format_frac(item: dict) -> str:
     total = item.get("total", 0)
     passed = item.get("passed", 0)
     return f"{passed}/{total}"
 
 
-def print_report(summary: dict, prior_temperature: float) -> None:
+def print_report(summary: dict, prior_temperature: float, retrieval_mode: str = "") -> None:
     print(f"prior_temperature: {prior_temperature} -> temperature: {TEMPERATURE}")
     print(f"seed: {SEED}  top_k: {TOP_K}  model: {CHAT_MODEL}")
+    if retrieval_mode:
+        print(f"retrieval_mode: {retrieval_mode}")
     print()
     print("Per-category results (counts / denominators):")
     for category, metrics in summary["per_category"].items():
@@ -351,15 +204,31 @@ def main() -> None:
         help="Write draft per_question.jsonl and summary.json to this directory "
         "(must be outside eval/results/)",
     )
+    parser.add_argument(
+        "--mode",
+        choices=RETRIEVAL_MODES,
+        default=None,
+        help="Retrieval mode (default: config RETRIEVAL_MODE)",
+    )
+    parser.add_argument(
+        "--testset",
+        type=Path,
+        default=TESTSET_PATH,
+        help="JSONL testset path (default: eval/testset_v1.jsonl)",
+    )
     args = parser.parse_args()
     draft_mode = bool(args.draft or args.draft_out)
+    retrieval_mode = args.mode or RETRIEVAL_MODE
+    testset_path = args.testset
+    if not testset_path.is_absolute():
+        testset_path = ROOT / testset_path
 
-    rows = load_testset(TESTSET_PATH)
+    rows = load_testset(testset_path)
     missing_verification = unverified_ids(rows)
     if missing_verification and not draft_mode:
         preview = ", ".join(missing_verification[:10])
         raise SystemExit(
-            "Refusing to run: "
+            f"Refusing to run {testset_path}: "
             f"{len(missing_verification)} row(s) have empty verified_by "
             f"(e.g. {preview}). Pass --draft to print results without writing."
         )
@@ -370,8 +239,8 @@ def main() -> None:
         if draft_out_dir == results_root or results_root in draft_out_dir.parents:
             raise SystemExit("--draft-out must be a directory outside eval/results/")
 
-    chain, retriever = load_vector_store()
-    if chain is None or retriever is None:
+    resources = load_vector_store()
+    if resources is None:
         raise SystemExit("Vector store not found or failed to load. Is Ollama running?")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -382,12 +251,17 @@ def main() -> None:
     scored_rows = []
     per_question = []
     for row in rows:
-        result = run_query(row["question"], chain, retriever)
+        result = run_query(
+            row["question"], resources, retrieval_mode=retrieval_mode
+        )
         docs = result.get("source_docs") or []
         skus = source_skus(docs)
         products = source_products(docs)
         chunks = source_chunks(docs)
         answer = result.get("answer") or ""
+        label = result.get("product_label") or ""
+        if label:
+            answer = f"{label}\n{answer}"
         scored = score_row(
             row,
             answer,
@@ -441,14 +315,14 @@ def main() -> None:
         "testset_version": TESTSET_VERSION,
         "corpus_retrieved_date": corpus_retrieved_date(MANIFEST_PATH),
         "timestamp": timestamp,
-        "retrieval_mode": "baseline",
+        "retrieval_mode": retrieval_mode,
         "draft": draft_mode,
         "n_questions": len(rows),
         "metrics": metrics,
     }
 
     print()
-    print_report(metrics, PRIOR_TEMPERATURE)
+    print_report(metrics, PRIOR_TEMPERATURE, retrieval_mode=retrieval_mode)
 
     if draft_mode and draft_out_dir is None:
         print("\nDraft run: nothing written to eval/results/.")

@@ -15,4 +15,4 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
       - name: Run router and eval smoke tests
-        run: pytest tests/test_safety_router.py tests/test_eval_smoke.py
+        run: pytest tests/test_safety_router.py tests/test_eval_smoke.py tests/test_product_index.py
