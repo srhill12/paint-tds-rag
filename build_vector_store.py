@@ -65,7 +65,7 @@ def build_vector_store(chunks: list[Document]) -> FAISS:
 
 def main():
     print("=" * 60)
-    print("Paint SDS RAG — Vector Store Builder")
+    print("Paint TDS RAG: Vector Store Builder")
     print("Using: Ollama nomic-embed-text + FAISS")
     print("Privacy: all processing stays local, no data leaves machine")
     print("=" * 60)

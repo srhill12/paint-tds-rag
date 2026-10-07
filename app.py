@@ -1,6 +1,6 @@
 """
-Paint SDS Assistant — RAG-powered Q&A for Benjamin Moore Technical Data Sheets
-Local deployment using Ollama (no data leaves your machine)
+Paint TDS Assistant: RAG-powered Q&A for Benjamin Moore Technical Data Sheets
+Runs locally using Ollama (no data leaves your machine)
 Built on: LangChain + FAISS + nomic-embed-text + Gemma 3
 """
 
@@ -20,16 +20,16 @@ TOP_K_RESULTS     = 4
 
 # ── Page Setup ────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Paint SDS Assistant",
+    page_title="Paint TDS Assistant",
     page_icon="🎨",
     layout="centered"
 )
 
-st.title("🎨 Paint SDS Assistant")
+st.title("🎨 Paint TDS Assistant")
 st.caption(
-    "Ask questions about Benjamin Moore product specifications, "
-    "safety data, application instructions, and technical requirements. "
-    "All processing is local — no data leaves this machine."
+    "Ask questions about Benjamin Moore Technical Data Sheets: product "
+    "specifications, application instructions, and technical requirements. "
+    "All processing is local, and no data leaves this machine."
 )
 
 st.divider()
@@ -108,7 +108,7 @@ st.subheader("Example Questions")
 example_questions = [
     "What is the drying time for Regal Select Interior?",
     "What surface preparation is required before applying exterior paint?",
-    "Is this product safe to use in enclosed spaces?",
+    "What sheens are available for Regal Select Interior?",
     "What is the VOC content of Aura Interior paint?",
     "How many square feet does a gallon of Ben Interior cover?",
     "What is the minimum application temperature for exterior products?",
@@ -164,14 +164,14 @@ if st.button("Ask", type="primary", use_container_width=True):
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.divider()
 st.caption(
-    "**Paint SDS Assistant** | Built with LangChain + FAISS + Ollama | "
+    "**Paint TDS Assistant** | Built with LangChain + FAISS + Ollama | "
     "Corpus: Benjamin Moore Technical Data Sheets | "
     "Local inference: Gemma 3 4B | "
     "Embeddings: nomic-embed-text"
 )
 st.caption(
-    "**Governance note:** This system retrieves answers only from indexed "
-    "TDS documents. It will not hallucinate product specifications — if "
-    "the answer is not in the corpus, it says so. Human review recommended "
-    "before acting on safety-critical information."
+    "**Governance note:** The model is instructed to answer only from "
+    "retrieved TDS excerpts and to say so when the answer is not in them. "
+    "It can still be wrong. Check answers against the source documents "
+    "before relying on them."
 )
