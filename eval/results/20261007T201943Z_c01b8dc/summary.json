@@ -1,0 +1,644 @@
+{
+  "run_id": "20261007T201943Z_c01b8dc",
+  "git_commit": "c01b8dcae02b5896b3c7ffadc87bf205918a84a3",
+  "model_name": "gemma3:4b",
+  "model_digest": "aa1cd77181b3",
+  "embedding_model": "nomic-embed-text",
+  "embedding_digest": "0a109f422b47",
+  "temperature": 0.0,
+  "prior_temperature": 0.1,
+  "seed": 42,
+  "top_k": 4,
+  "chunk_size": 500,
+  "chunk_overlap": 50,
+  "testset_version": "v1",
+  "corpus_retrieved_date": "2026-10-07",
+  "timestamp": "20261007T201943Z",
+  "retrieval_mode": "baseline",
+  "draft": false,
+  "n_questions": 62,
+  "metrics": {
+    "per_category": {
+      "answerable": {
+        "n": 16,
+        "passed": {
+          "passed": 3,
+          "total": 16
+        },
+        "hedged": {
+          "passed": 1,
+          "total": 16
+        },
+        "numeric_match": {
+          "passed": 4,
+          "total": 16
+        },
+        "citation": {
+          "passed": 10,
+          "total": 16
+        },
+        "top1_match": {
+          "passed": 5,
+          "total": 16
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 6
+        },
+        "misattributed": {
+          "passed": 6,
+          "total": 6
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 6
+        }
+      },
+      "unanswerable": {
+        "n": 8,
+        "passed": {
+          "passed": 5,
+          "total": 8
+        },
+        "hedged": {
+          "passed": 1,
+          "total": 8
+        },
+        "decline": {
+          "passed": 6,
+          "total": 8
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 1
+        },
+        "misattributed": {
+          "passed": 1,
+          "total": 1
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 1
+        }
+      },
+      "confusion": {
+        "n": 16,
+        "passed": {
+          "passed": 6,
+          "total": 16
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 16
+        },
+        "wrong_product_rate": {
+          "passed": 10,
+          "total": 16
+        },
+        "expected_in_topk": {
+          "passed": 11,
+          "total": 16
+        },
+        "top1_match": {
+          "passed": 6,
+          "total": 16
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 8
+        },
+        "misattributed": {
+          "passed": 8,
+          "total": 8
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 8
+        }
+      },
+      "family": {
+        "n": 4,
+        "passed": {
+          "passed": 0,
+          "total": 4
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 4
+        },
+        "asks_which_product": {
+          "passed": 0,
+          "total": 4
+        },
+        "numeric_specification": {
+          "passed": 3,
+          "total": 4
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 3
+        },
+        "misattributed": {
+          "passed": 3,
+          "total": 3
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 3
+        }
+      },
+      "underspecified": {
+        "n": 5,
+        "passed": {
+          "passed": 0,
+          "total": 5
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 5
+        },
+        "asks_which_product": {
+          "passed": 0,
+          "total": 5
+        },
+        "numeric_specification": {
+          "passed": 2,
+          "total": 5
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 2
+        },
+        "misattributed": {
+          "passed": 2,
+          "total": 2
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 2
+        }
+      },
+      "safety": {
+        "n": 8,
+        "passed": {
+          "passed": 5,
+          "total": 8
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 8
+        },
+        "safety_routed": {
+          "passed": 5,
+          "total": 8
+        },
+        "source_correct": {
+          "passed": 0,
+          "total": 0
+        },
+        "misattributed": {
+          "passed": 0,
+          "total": 0
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 0
+        }
+      },
+      "safety_negative": {
+        "n": 5,
+        "passed": {
+          "passed": 5,
+          "total": 5
+        },
+        "hedged": {
+          "passed": 0,
+          "total": 5
+        },
+        "not_routed": {
+          "passed": 5,
+          "total": 5
+        },
+        "source_correct": {
+          "passed": 1,
+          "total": 3
+        },
+        "misattributed": {
+          "passed": 2,
+          "total": 3
+        },
+        "unsupported": {
+          "passed": 0,
+          "total": 3
+        }
+      }
+    },
+    "hedged_count": {
+      "passed": 2,
+      "total": 62
+    },
+    "unsupported_value_rate": {
+      "passed": 0,
+      "total": 23,
+      "items": []
+    },
+    "misattributed_values": [
+      {
+        "id": "ans-01",
+        "value": "49 grams/liter",
+        "attesting_skus": [
+          "TRC-035",
+          "34 Line"
+        ]
+      },
+      {
+        "id": "ans-01",
+        "value": "0.41 Lbs./Gallon",
+        "attesting_skus": [
+          "TRC-035",
+          "34 Line"
+        ]
+      },
+      {
+        "id": "ans-02",
+        "value": "1 hour",
+        "attesting_skus": [
+          "046",
+          "532",
+          "N484",
+          "N485"
+        ]
+      },
+      {
+        "id": "ans-05",
+        "value": "below 50 \u00b0F",
+        "attesting_skus": [
+          "532",
+          "N522",
+          "N524",
+          "N526"
+        ]
+      },
+      {
+        "id": "ans-05",
+        "value": "10 \u00b0C",
+        "attesting_skus": [
+          "532",
+          "N522",
+          "N524",
+          "N526"
+        ]
+      },
+      {
+        "id": "ans-11",
+        "value": "350 - 475 square feet",
+        "attesting_skus": [
+          "N455"
+        ]
+      },
+      {
+        "id": "ans-13",
+        "value": "615 grams per liter",
+        "attesting_skus": [
+          "V705"
+        ]
+      },
+      {
+        "id": "ans-13",
+        "value": "5.13 lbs./gal",
+        "attesting_skus": [
+          "V705"
+        ]
+      },
+      {
+        "id": "ans-16",
+        "value": "4 hours",
+        "attesting_skus": [
+          "262"
+        ]
+      },
+      {
+        "id": "ans-16",
+        "value": "77\u00b0F",
+        "attesting_skus": [
+          "262"
+        ]
+      },
+      {
+        "id": "ans-16",
+        "value": "25\u00b0C",
+        "attesting_skus": [
+          "262"
+        ]
+      },
+      {
+        "id": "una-08",
+        "value": "67 grams/liter",
+        "attesting_skus": [
+          "TRC-040"
+        ]
+      },
+      {
+        "id": "conf-01a",
+        "value": "615 grams per liter",
+        "attesting_skus": [
+          "V705"
+        ]
+      },
+      {
+        "id": "conf-01a",
+        "value": "5.13 lbs./gal",
+        "attesting_skus": [
+          "V705"
+        ]
+      },
+      {
+        "id": "conf-01b",
+        "value": "3.26 lbs./gallon",
+        "attesting_skus": [
+          "V260"
+        ]
+      },
+      {
+        "id": "conf-04a",
+        "value": "35\u00b0F",
+        "attesting_skus": [
+          "N631",
+          "N632",
+          "N629"
+        ]
+      },
+      {
+        "id": "conf-04b",
+        "value": "50\u00b0F",
+        "attesting_skus": [
+          "532",
+          "N522",
+          "N524",
+          "N526"
+        ]
+      },
+      {
+        "id": "conf-04b",
+        "value": "10\u00b0C",
+        "attesting_skus": [
+          "532",
+          "N522",
+          "N524",
+          "N526"
+        ]
+      },
+      {
+        "id": "conf-05a",
+        "value": "49 grams per liter",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "conf-05a",
+        "value": "0.41 lbs./gallon",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "conf-05b",
+        "value": "400 grams per liter",
+        "attesting_skus": [
+          "V230"
+        ]
+      },
+      {
+        "id": "conf-05b",
+        "value": "3.33 lbs./gal",
+        "attesting_skus": [
+          "V230"
+        ]
+      },
+      {
+        "id": "conf-08a",
+        "value": "less than 50 g/L",
+        "attesting_skus": [
+          "263",
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "conf-08a",
+        "value": "0.41 lbs./gallon",
+        "attesting_skus": [
+          "263",
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "conf-08b",
+        "value": "49 grams per liter",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "conf-08b",
+        "value": "0.41 lbs./gallon",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "fam-01",
+        "value": "2 hours",
+        "attesting_skus": [
+          "V440"
+        ]
+      },
+      {
+        "id": "fam-01",
+        "value": "8 hours",
+        "attesting_skus": [
+          "V440"
+        ]
+      },
+      {
+        "id": "fam-01",
+        "value": "77\u00b0F",
+        "attesting_skus": [
+          "V440"
+        ]
+      },
+      {
+        "id": "fam-01",
+        "value": "50%",
+        "attesting_skus": [
+          "V440"
+        ]
+      },
+      {
+        "id": "fam-02",
+        "value": "2 hours",
+        "attesting_skus": [
+          "V230"
+        ]
+      },
+      {
+        "id": "fam-04",
+        "value": "1600 - 2400 square feet",
+        "attesting_skus": [
+          "N318"
+        ]
+      },
+      {
+        "id": "und-03",
+        "value": "4 Hours",
+        "attesting_skus": [
+          "W623"
+        ]
+      },
+      {
+        "id": "und-03",
+        "value": "24 hours",
+        "attesting_skus": [
+          "326/C326",
+          "W623",
+          "N623"
+        ]
+      },
+      {
+        "id": "und-03",
+        "value": "1 - 3 Hours",
+        "attesting_skus": [
+          "N623"
+        ]
+      },
+      {
+        "id": "und-03",
+        "value": "24 hours",
+        "attesting_skus": [
+          "326/C326",
+          "W623",
+          "N623"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "95\u00b0F",
+        "attesting_skus": [
+          "IL-6800",
+          "TRC-035",
+          "TRC-007"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "49 Grams/Liter",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "0.41 Lbs./Gallon",
+        "attesting_skus": [
+          "TRC-035"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "95\u00b0F",
+        "attesting_skus": [
+          "IL-6800",
+          "TRC-035",
+          "TRC-007"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "95 Grams/Liter",
+        "attesting_skus": [
+          "TRC-007"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "0.79 Lbs./Gallon",
+        "attesting_skus": [
+          "TRC-007"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "503 Grams/Liter",
+        "attesting_skus": [
+          "329/C329"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "4.20 Lbs./Gallon",
+        "attesting_skus": [
+          "329/C329"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "226 Grams/Liter",
+        "attesting_skus": [
+          "329/C329"
+        ]
+      },
+      {
+        "id": "und-05",
+        "value": "1.91 Lbs./Gallon",
+        "attesting_skus": [
+          "329/C329"
+        ]
+      },
+      {
+        "id": "sneg-01",
+        "value": "4 hours",
+        "attesting_skus": [
+          "694"
+        ]
+      },
+      {
+        "id": "sneg-01",
+        "value": "4 hours",
+        "attesting_skus": [
+          "694"
+        ]
+      },
+      {
+        "id": "sneg-01",
+        "value": "48 hours",
+        "attesting_skus": [
+          "694"
+        ]
+      },
+      {
+        "id": "sneg-03",
+        "value": "77\u00b0F",
+        "attesting_skus": [
+          "326/C326",
+          "W623"
+        ]
+      },
+      {
+        "id": "sneg-03",
+        "value": "25\u00b0C",
+        "attesting_skus": [
+          "326/C326",
+          "W623"
+        ]
+      }
+    ],
+    "attribution_rate": {
+      "passed": 14,
+      "total": 23
+    },
+    "paraphrased_safety": {
+      "routed": 0,
+      "total": 3
+    }
+  }
+}

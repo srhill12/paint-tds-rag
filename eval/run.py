@@ -38,6 +38,7 @@ from config import (  # noqa: E402
     TESTSET_VERSION,
     TOP_K,
 )
+from eval.records import chunk_ids_for, write_question_logs  # noqa: E402
 from eval.scoring import CATEGORIES, TESTSET_FIELDS, score_row, summarize  # noqa: E402
 from rag import load_vector_store, run_query  # noqa: E402
 
@@ -258,6 +259,7 @@ def main() -> None:
         skus = source_skus(docs)
         products = source_products(docs)
         chunks = source_chunks(docs)
+        chunk_ids = chunk_ids_for(skus, chunks)
         answer = result.get("answer") or ""
         label = result.get("product_label") or ""
         if label:
@@ -278,6 +280,7 @@ def main() -> None:
                 "category": row["category"],
                 "answer": answer,
                 "retrieved_skus": skus,
+                "retrieved_chunk_ids": chunk_ids,
                 "retrieved_chunk_text": chunks,
                 "safety_routed": bool(result.get("safety_routed")),
                 "matched_terms": result.get("matched_terms") or [],
@@ -334,9 +337,7 @@ def main() -> None:
         json.dumps(summary, indent=2) + "\n",
         encoding="utf-8",
     )
-    with (out_dir / "per_question.jsonl").open("w", encoding="utf-8") as handle:
-        for item in per_question:
-            handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+    write_question_logs(out_dir, per_question)
     if draft_mode:
         print(f"\nDraft run: wrote {out_dir} (not eval/results/).")
     else:

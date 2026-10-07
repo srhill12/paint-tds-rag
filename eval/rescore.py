@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from config import RESULTS_DIR, TESTSET_PATH  # noqa: E402
+from eval.records import write_question_logs  # noqa: E402
 from eval.scoring import SCORER_VERSION, score_row, summarize  # noqa: E402
 
 COMMITTED_BASELINE = "20261007T201943Z_c01b8dc"
@@ -89,9 +90,7 @@ def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> dict:
     summary["rescored_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    with pq_path.open("w", encoding="utf-8") as handle:
-        for item in updated_items:
-            handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+    write_question_logs(run_dir, updated_items)
     return summary
 
 
