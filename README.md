@@ -3,8 +3,10 @@
 A fully local Retrieval-Augmented Generation (RAG) system that enables 
 natural language queries against a corpus of Benjamin Moore Technical 
 Data Sheets (TDS). It was built to solve a real operational problem at 
-Hill Country Paints without sending proprietary product data to external 
-servers.
+Hill Country Paints. Local processing keeps the questions staff and 
+customers ask on the machine. Those questions can reveal customer names, 
+job sites, projects, and purchasing context, and no third-party data 
+processor is involved.
 
 ---
 
@@ -16,10 +18,10 @@ preparation requirements, application temperatures, and coverage rates.
 Looking up this information manually across hundreds of Technical Data 
 Sheets is time-consuming and error-prone.
 
-The obvious solution is a cloud-based AI assistant, but that creates a 
-data privacy problem: proprietary product knowledge and customer queries 
-would be transmitted to external servers. For a business relationship 
-with a brand like Benjamin Moore, that's not acceptable.
+The obvious solution is a cloud-based AI assistant, but that would send 
+the questions staff and customers ask to a third-party data processor. 
+Those questions can reveal customer names, job sites, projects, and 
+purchasing context.
 
 **The governance-driven solution:** A fully local RAG system where all 
 processing stays on-premise. No data leaves the machine.
@@ -154,9 +156,11 @@ every technical decision:
 
 **1. Local-only processing**
 All embeddings, retrieval, and inference run on-device via Ollama. 
-No queries or product data are transmitted to external APIs. This 
-protects proprietary product knowledge and customer interaction data. 
-The only network step is the one-time download of public TDS PDFs by 
+No queries or responses leave the machine at runtime. Local processing 
+keeps the questions staff and customers ask on the machine. Those 
+questions can reveal customer names, job sites, projects, and purchasing 
+context, and no third-party data processor is involved. The only network 
+step is the one-time download of public TDS PDFs by 
 `scripts/fetch_sources.py`.
 
 **2. Retrieval-grounded responses**
@@ -191,10 +195,9 @@ model follows this instruction should be confirmed by evaluation.
 **6. Safety question routing**
 A rule-based router flags questions that match whole words or phrases 
 such as hazard, PPE, flammable, pets, and safe to use. When it 
-triggers, the assistant first shows a fixed notice that Technical Data 
-Sheets are not the authoritative source for safety information and that 
-staff should consult the Safety Data Sheet (SDS) for the specific 
-product and base. It then links to Benjamin Moore's documentation 
+triggers, the assistant first shows a fixed notice that TDS safety 
+content is partial and varies by sheet, while the SDS is the regulated, 
+complete, authoritative source for the specific product and base. It then links to Benjamin Moore's documentation 
 search rather than naming a single SDS file. SDSs carry the OSHA 
 hazard classifications, and they are issued per base and colorant, so 
 guessing one sheet would be wrong. Any TDS-derived answer is shown 
@@ -228,7 +231,7 @@ added to the list. Both cases are documented in
 This project originated during my tenure as Director of AI Governance & 
 Enablement at Hill Country Paints, where I identified the need for staff 
 to query product specification data quickly during customer interactions 
-without sending proprietary data to cloud services. The initial prototype 
+while keeping those questions on the machine. The initial prototype 
 was built during that tenure and used fine-tuned GPT-2. This version is a 
 later rebuild using a modern RAG architecture with local inference via 
 Ollama.

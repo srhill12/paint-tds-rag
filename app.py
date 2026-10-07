@@ -117,9 +117,11 @@ def main() -> None:
 
     st.info(
         "**Privacy Notice:** This assistant runs entirely on your local machine "
-        "using Ollama. No queries, product data, or responses are sent to any "
-        "external server. This was a deliberate design decision to protect "
-        "proprietary product information.",
+        "using Ollama. No queries or responses leave the machine at runtime. "
+        "Local processing keeps the questions staff and customers ask on the "
+        "machine. Those questions can reveal customer names, job sites, "
+        "projects, and purchasing context, and no third-party data processor "
+        "is involved. The only network step is `scripts/fetch_sources.py`.",
         icon="🔒"
     )
 
