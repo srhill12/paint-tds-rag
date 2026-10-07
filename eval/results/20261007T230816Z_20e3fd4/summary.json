@@ -1,6 +1,6 @@
 {
-  "run_id": "20261007T225432Z_5b07db3",
-  "git_commit": "5b07db36c3c1d76091a48d32d9ecb4e82c1141c9",
+  "run_id": "20261007T230816Z_20e3fd4",
+  "git_commit": "20e3fd4cff0a067f9c19d7dbfbba4e720ca86f12",
   "model_name": "gemma3:4b",
   "model_digest": "aa1cd77181b3",
   "embedding_model": "nomic-embed-text",
@@ -9,11 +9,14 @@
   "prior_temperature": 0.1,
   "seed": 42,
   "top_k": 4,
+  "num_ctx": 8192,
+  "context_budget_frac": 0.8,
+  "sku_fallback_k": 12,
   "chunk_size": 500,
   "chunk_overlap": 50,
   "testset_version": "v1",
   "corpus_retrieved_date": "2026-10-07",
-  "timestamp": "20261007T225432Z",
+  "timestamp": "20261007T230816Z",
   "retrieval_mode": "product_aware",
   "router_v2": true,
   "testset_path": "eval/testset_v1.jsonl",
@@ -24,7 +27,7 @@
       "answerable": {
         "n": 16,
         "passed": {
-          "passed": 11,
+          "passed": 16,
           "total": 16
         },
         "hedged": {
@@ -32,7 +35,7 @@
           "total": 16
         },
         "numeric_match": {
-          "passed": 11,
+          "passed": 16,
           "total": 16
         },
         "citation": {
@@ -44,26 +47,26 @@
           "total": 16
         },
         "source_correct": {
-          "passed": 12,
-          "total": 12
+          "passed": 16,
+          "total": 16
         },
         "misattributed": {
           "passed": 0,
-          "total": 12
+          "total": 16
         },
         "unsupported": {
           "passed": 0,
-          "total": 12
+          "total": 16
         }
       },
       "unanswerable": {
         "n": 8,
         "passed": {
-          "passed": 5,
+          "passed": 4,
           "total": 8
         },
         "hedged": {
-          "passed": 1,
+          "passed": 2,
           "total": 8
         },
         "decline": {
@@ -80,7 +83,7 @@
         },
         "unsupported": {
           "passed": 0,
-          "total": 2
+          "total": 3
         }
       },
       "confusion": {
@@ -204,7 +207,7 @@
         },
         "unsupported": {
           "passed": 0,
-          "total": 1
+          "total": 3
         }
       },
       "safety_negative": {
@@ -222,38 +225,50 @@
           "total": 5
         },
         "source_correct": {
-          "passed": 2,
-          "total": 2
+          "passed": 3,
+          "total": 3
         },
         "misattributed": {
           "passed": 0,
-          "total": 2
+          "total": 3
         },
         "unsupported": {
           "passed": 0,
-          "total": 2
+          "total": 3
         }
       }
     },
     "hedged_count": {
-      "passed": 1,
+      "passed": 2,
       "total": 62
     },
     "unsupported_value_rate": {
       "passed": 0,
-      "total": 33,
+      "total": 41,
       "items": []
     },
     "misattributed_values": [],
     "attribution_rate": {
-      "passed": 32,
-      "total": 33
+      "passed": 40,
+      "total": 41
     },
     "paraphrased_safety": {
       "routed": 3,
       "total": 3
     }
   },
+  "prompt_tokens": {
+    "mean": 1974.4677,
+    "max": 3324.0,
+    "max_id": "conf-05b"
+  },
+  "latency_s": {
+    "mean": 3.699,
+    "max": 10.3439,
+    "max_id": "conf-06a"
+  },
+  "sku_context_fallback_ids": [],
+  "prompt_hit_cap_ids": [],
   "scorer_version": "2026-10-07-decline-consolidate",
   "rescored_at": "2026-10-07T23:42:06Z"
 }

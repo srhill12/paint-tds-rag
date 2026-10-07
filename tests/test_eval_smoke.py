@@ -129,6 +129,51 @@ UNA01_PRODUCT_AWARE_ANSWER = (
 )
 
 
+# Run 3 una-06 from eval/results/20261007T230816Z_20e3fd4.
+UNA06_RUN3_ANSWER = (
+    "Product: Advance® Waterborne Interior Alkyd Satin 792 (792)\n"
+    "No, the provided Technical Data Sheet excerpt does not specify whether "
+    "Advance Satin 792 is available on Amazon. It only lists the product name "
+    "and SKU (792 US 041023) and provides information about its properties "
+    "and usage."
+)
+
+
+def test_una06_does_not_specify_is_decline_and_passes():
+    assert is_decline(UNA06_RUN3_ANSWER)
+    row = {
+        "category": "unanswerable",
+        "expected_value": None,
+        "expected_unit": None,
+        "expected_sku": "",
+        "acceptable_skus": [],
+        "notes": "",
+    }
+    scored = score_row(row, UNA06_RUN3_ANSWER, ["792"], ["Advance Satin 792"], False)
+    assert scored["decline"] is True
+    assert scored["quantities"] == []
+    assert scored["hedged"] is False
+    assert scored["passed"] is True
+    assert scored["failure_reason"] == ""
+
+
+def test_ordinary_spec_answer_is_not_a_decline():
+    answer = "Regal Select Interior Eggshell N549 covers 400-450 sq. ft. per gallon."
+    assert not is_decline(answer)
+    row = {
+        "category": "unanswerable",
+        "expected_value": None,
+        "expected_unit": None,
+        "expected_sku": "",
+        "acceptable_skus": [],
+        "notes": "",
+    }
+    scored = score_row(row, answer, ["N549"], ["400 – 450 Sq. Ft."], False)
+    assert scored["decline"] is False
+    assert scored["passed"] is False
+    assert scored["failure_reason"] == "no_decline"
+
+
 def test_una01_does_not_list_is_hedged_decline():
     assert is_decline(UNA01_PRODUCT_AWARE_ANSWER)
     row = {

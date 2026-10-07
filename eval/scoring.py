@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 
-SCORER_VERSION = "2026-10-07-lbs-per-gallon"
+SCORER_VERSION = "2026-10-07-decline-consolidate"
 
 TESTSET_FIELDS = (
     "id",
@@ -34,25 +34,31 @@ CATEGORIES = (
     "safety_negative",
 )
 
-# Phrasing instructed by the system prompt: "If the answer is not in the
-# provided context, say so clearly rather than guessing."
+# One list for "the documents do not contain this." Covers the system prompt
+# ("not in the provided context") and the phrasings the model actually uses.
+# Do/does/don't and cannot/can't variants of the same verb are included.
+# Observed after una-06 ("does not specify"); applied uniformly to all runs.
+# Hedged (this match plus a number-with-unit) is a separate rule and unchanged.
 DECLINE_PATTERNS = (
     r"not in the provided context",
-    r"not (?:present|found|available|contained) in the (?:provided |retrieved )?(?:context|excerpts?|documents?)",
-    r"(?:provided|retrieved) (?:context|excerpts?|documents?) (?:do not|don't|does not|doesn't) (?:contain|include|cover|mention|have)",
-    r"(?:the )?(?:documents?|excerpts?|context) (?:do not|don't|does not|doesn't) (?:contain|include|cover|mention|have)",
-    r"do(?:es)? not (?:contain|include|cover|mention) (?:that |this |the )?(?:information|data|value|answer)",
-    r"(?:that |this |the )?(?:information|answer) is not (?:in|available|present)",
-    r"no information (?:is |was )?(?:available|provided|found|in)",
-    r"cannot (?:find|determine|answer|tell|provide)",
-    r"can'?t (?:find|determine|answer|tell|provide)",
-    r"unable to (?:find|determine|answer|tell|provide)",
-    r"i don'?t (?:know|have)",
-    r"not specified in (?:the )?(?:provided |retrieved )?(?:context|documents?|excerpts?)",
-    r"do(?:es)? not have (?:that |this |the )?(?:information|data)",
-    r"isn'?t (?:in|available in) the (?:provided |retrieved )?(?:context|documents?|excerpts?)",
-    r"not available in the (?:provided |retrieved )?(?:context|documents?|excerpts?)",
-    r"does not list",
+    r"cannot provide",
+    r"can'?t provide",
+    r"do(?:es)? not list",
+    r"don'?t list",
+    r"do(?:es)? not specify",
+    r"don'?t specify",
+    r"do(?:es)? not include",
+    r"don'?t include",
+    r"do(?:es)? not mention",
+    r"don'?t mention",
+    r"do(?:es)? not contain",
+    r"don'?t contain",
+    r"do(?:es)? not provide",
+    r"don'?t provide",
+    r"not provided",
+    r"not listed",
+    r"not available in the provided",
+    r"no information",
 )
 
 CLARIFY_PRODUCT_PATTERNS = (

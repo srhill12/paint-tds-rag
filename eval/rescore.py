@@ -17,6 +17,7 @@ from eval.records import write_question_logs  # noqa: E402
 from eval.scoring import SCORER_VERSION, score_row, summarize  # noqa: E402
 
 COMMITTED_BASELINE = "20261007T201943Z_c01b8dc"
+HOLDOUT_PATH = Path("eval") / "testset_router_holdout.jsonl"
 
 
 def load_jsonl(path: Path) -> list[dict]:
@@ -51,7 +52,7 @@ def apply_score(item: dict, scored: dict) -> dict:
     return updated
 
 
-def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> dict:
+def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> tuple[dict, list[dict]]:
     run_dir = run_dir.expanduser().resolve()
     committed = (ROOT / RESULTS_DIR / COMMITTED_BASELINE).resolve()
     if run_dir == committed:
@@ -67,6 +68,7 @@ def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> dict:
     items = load_jsonl(pq_path)
     scored_rows = []
     updated_items = []
+    changes = []
     for item in items:
         qid = item.get("id")
         row = testset_by_id.get(qid)
@@ -79,6 +81,23 @@ def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> dict:
             item.get("retrieved_chunk_text") or [],
             bool(item.get("safety_routed")),
         )
+        old_passed = item.get("passed")
+        old_reason = item.get("failure_reason") or ""
+        new_passed = scored["passed"]
+        new_reason = scored["failure_reason"] or ""
+        if old_passed != new_passed or old_reason != new_reason:
+            changes.append(
+                {
+                    "id": qid,
+                    "category": item.get("category") or row.get("category"),
+                    "old_passed": old_passed,
+                    "new_passed": new_passed,
+                    "old_reason": old_reason,
+                    "new_reason": new_reason,
+                    "decline": scored.get("decline"),
+                    "hedged": scored.get("hedged"),
+                }
+            )
         scored_rows.append(scored)
         updated_items.append(apply_score(item, scored))
 
@@ -91,7 +110,7 @@ def rescore_run(run_dir: Path, testset_by_id: dict[str, dict]) -> dict:
 
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     write_question_logs(run_dir, updated_items)
-    return summary
+    return summary, changes
 
 
 def main() -> None:
@@ -115,14 +134,30 @@ def main() -> None:
     if not testset_path.is_absolute():
         testset_path = ROOT / testset_path
     testset_by_id = load_testset(testset_path)
+    holdout_path = ROOT / HOLDOUT_PATH
+    if holdout_path.exists() and holdout_path.resolve() != testset_path.resolve():
+        testset_by_id.update(load_testset(holdout_path))
 
     for run_dir in args.run_dir:
         path = run_dir if run_dir.is_absolute() else ROOT / run_dir
-        summary = rescore_run(path, testset_by_id)
+        summary, changes = rescore_run(path, testset_by_id)
         print(
             f"rescored {path} scorer_version={summary.get('scorer_version')} "
             f"rescored_at={summary.get('rescored_at')}"
         )
+        if not changes:
+            print("  status changes: (none)")
+            continue
+        print("  status changes:")
+        for change in changes:
+            old = "PASS" if change["old_passed"] else "FAIL"
+            new = "PASS" if change["new_passed"] else "FAIL"
+            print(
+                f"    {change['id']} ({change['category']}) "
+                f"{old}/{change['old_reason'] or 'ok'} -> "
+                f"{new}/{change['new_reason'] or 'ok'} "
+                f"decline={change['decline']} hedged={change['hedged']}"
+            )
 
 
 if __name__ == "__main__":

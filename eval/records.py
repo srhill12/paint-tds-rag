@@ -71,6 +71,11 @@ def to_public_record(item: dict) -> dict[str, Any]:
         "matched_terms": list(item.get("matched_terms") or []),
         "scores": list(item.get("scores") or []),
         "failure_reason": item.get("failure_reason") or "",
+        "latency_s": item.get("latency_s"),
+        "prompt_tokens_est": item.get("prompt_tokens_est"),
+        "sku_context_fallback": bool(item.get("sku_context_fallback")),
+        "prompt_hit_cap": bool(item.get("prompt_hit_cap")),
+        "sku_chunk_count": item.get("sku_chunk_count"),
     }
 
 

@@ -253,5 +253,7 @@
       "routed": 8,
       "total": 8
     }
-  }
+  },
+  "scorer_version": "2026-10-07-decline-consolidate",
+  "rescored_at": "2026-10-07T23:42:06Z"
 }

@@ -12,6 +12,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,14 +27,17 @@ from config import (  # noqa: E402
     CHAT_MODEL,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
+    CONTEXT_BUDGET_FRAC,
     EMBEDDING_MODEL,
     MANIFEST_PATH,
+    NUM_CTX,
     PRIOR_TEMPERATURE,
     RESULTS_DIR,
     RETRIEVAL_MODE,
     RETRIEVAL_MODES,
     ROUTER_V2_ENABLED,
     SEED,
+    SKU_FALLBACK_K,
     TEMPERATURE,
     TESTSET_PATH,
     TESTSET_VERSION,
@@ -159,21 +163,50 @@ def format_frac(item: dict) -> str:
     return f"{passed}/{total}"
 
 
+def mean_max(values: list[float]) -> dict:
+    if not values:
+        return {"mean": 0.0, "max": 0.0}
+    return {
+        "mean": round(sum(values) / len(values), 4),
+        "max": round(max(values), 4),
+    }
+
+
 def print_report(
     summary: dict,
     prior_temperature: float,
     retrieval_mode: str = "",
     router_v2: bool | None = None,
     testset_path: str = "",
+    run_summary: dict | None = None,
 ) -> None:
     print(f"prior_temperature: {prior_temperature} -> temperature: {TEMPERATURE}")
     print(f"seed: {SEED}  top_k: {TOP_K}  model: {CHAT_MODEL}")
+    print(f"num_ctx: {NUM_CTX}")
     if retrieval_mode:
         print(f"retrieval_mode: {retrieval_mode}")
     if router_v2 is not None:
         print(f"router_v2: {'on' if router_v2 else 'off'}")
     if testset_path:
         print(f"testset: {testset_path}")
+    if run_summary:
+        tokens = run_summary.get("prompt_tokens") or {}
+        latency = run_summary.get("latency_s") or {}
+        print(
+            f"prompt_tokens_est: mean {tokens.get('mean')}  "
+            f"max {tokens.get('max')} ({tokens.get('max_id') or '-'})"
+        )
+        print(
+            f"latency_s: mean {latency.get('mean')}  "
+            f"max {latency.get('max')} ({latency.get('max_id') or '-'})"
+        )
+        fallback_ids = run_summary.get("sku_context_fallback_ids") or []
+        cap_ids = run_summary.get("prompt_hit_cap_ids") or []
+        print(
+            "sku_context_fallback: "
+            + (", ".join(fallback_ids) if fallback_ids else "(none)")
+        )
+        print("prompt_hit_cap: " + (", ".join(cap_ids) if cap_ids else "(none)"))
     print()
     print("Per-category results (counts / denominators):")
     for category, metrics in summary["per_category"].items():
@@ -277,12 +310,14 @@ def main() -> None:
     scored_rows = []
     per_question = []
     for row in rows:
+        started = time.perf_counter()
         result = run_query(
             row["question"],
             resources,
             retrieval_mode=retrieval_mode,
             router_v2=router_v2,
         )
+        latency_s = round(time.perf_counter() - started, 4)
         docs = result.get("source_docs") or []
         skus = source_skus(docs)
         products = source_products(docs)
@@ -301,6 +336,9 @@ def main() -> None:
             retrieved_products=products,
         )
         scored_rows.append(scored)
+        prompt_tokens_est = int(result.get("prompt_tokens_est") or 0)
+        sku_fallback = bool(result.get("sku_context_fallback"))
+        prompt_hit_cap = bool(result.get("prompt_hit_cap"))
         per_question.append(
             {
                 "id": row["id"],
@@ -323,13 +361,51 @@ def main() -> None:
                 "source_correct_values": scored.get("source_correct_values") or [],
                 "misattributed_values": scored.get("misattributed_values") or [],
                 "attribution": scored["attribution"],
+                "latency_s": latency_s,
+                "prompt_tokens_est": prompt_tokens_est,
+                "prompt_tokens_full_sheet_est": result.get(
+                    "prompt_tokens_full_sheet_est"
+                ),
+                "sku_context_fallback": sku_fallback,
+                "prompt_hit_cap": prompt_hit_cap,
+                "sku_chunk_count": result.get("sku_chunk_count"),
+                "sku_chunk_count_full": result.get("sku_chunk_count_full"),
+                "context_budget_tokens": result.get("context_budget_tokens"),
             }
         )
         status = "PASS" if scored["passed"] else "FAIL"
         reason = scored["failure_reason"] or "ok"
-        print(f"[{status}] {row['id']} ({row['category']}) {reason}")
+        flags = []
+        if sku_fallback:
+            flags.append("FALLBACK")
+        if prompt_hit_cap:
+            flags.append("HIT_CAP")
+        flag_s = f" {' '.join(flags)}" if flags else ""
+        print(
+            f"[{status}] {row['id']} ({row['category']}) {reason}  "
+            f"tokens={prompt_tokens_est} latency_s={latency_s}{flag_s}"
+        )
 
     metrics = summarize(rows, scored_rows)
+    token_values = [float(item.get("prompt_tokens_est") or 0) for item in per_question]
+    latency_values = [float(item.get("latency_s") or 0) for item in per_question]
+    token_stats = mean_max(token_values)
+    latency_stats = mean_max(latency_values)
+    max_token_id = ""
+    max_latency_id = ""
+    if per_question:
+        max_token_id = max(
+            per_question, key=lambda item: item.get("prompt_tokens_est") or 0
+        )["id"]
+        max_latency_id = max(
+            per_question, key=lambda item: item.get("latency_s") or 0
+        )["id"]
+    token_stats["max_id"] = max_token_id
+    latency_stats["max_id"] = max_latency_id
+    fallback_ids = [
+        item["id"] for item in per_question if item.get("sku_context_fallback")
+    ]
+    cap_ids = [item["id"] for item in per_question if item.get("prompt_hit_cap")]
     summary = {
         "run_id": run_id,
         "git_commit": commit,
@@ -341,6 +417,9 @@ def main() -> None:
         "prior_temperature": PRIOR_TEMPERATURE,
         "seed": SEED,
         "top_k": TOP_K,
+        "num_ctx": NUM_CTX,
+        "context_budget_frac": CONTEXT_BUDGET_FRAC,
+        "sku_fallback_k": SKU_FALLBACK_K,
         "chunk_size": CHUNK_SIZE,
         "chunk_overlap": CHUNK_OVERLAP,
         "testset_version": TESTSET_VERSION,
@@ -356,6 +435,10 @@ def main() -> None:
         "draft": draft_mode,
         "n_questions": len(rows),
         "metrics": metrics,
+        "prompt_tokens": token_stats,
+        "latency_s": latency_stats,
+        "sku_context_fallback_ids": fallback_ids,
+        "prompt_hit_cap_ids": cap_ids,
     }
 
     print()
@@ -365,6 +448,7 @@ def main() -> None:
         retrieval_mode=retrieval_mode,
         router_v2=router_v2,
         testset_path=summary["testset_path"],
+        run_summary=summary,
     )
 
     if draft_mode and draft_out_dir is None:

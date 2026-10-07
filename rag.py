@@ -14,16 +14,23 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from config import (
     CHAT_MODEL,
     EMBEDDING_MODEL,
+    NUM_CTX,
     PROMPT_TEMPLATE,
     PROMPT_TEMPLATE_PRODUCT_AWARE,
     RETRIEVAL_MODE,
     SEED,
+    SKU_FALLBACK_K,
     TEMPERATURE,
     TOP_K,
     VECTOR_STORE_PATH,
 )
 from product_index import get_index
 from safety_router import build_response
+from sku_context import (
+    choose_sku_docs,
+    prompt_stats_for_docs,
+    sku_docs_in_index_order,
+)
 
 
 def load_vector_store():
@@ -47,7 +54,12 @@ def load_vector_store():
     )
 
     prompt = PromptTemplate.from_template(PROMPT_TEMPLATE)
-    llm = ChatOllama(model=CHAT_MODEL, temperature=TEMPERATURE, seed=SEED)
+    llm = ChatOllama(
+        model=CHAT_MODEL,
+        temperature=TEMPERATURE,
+        seed=SEED,
+        num_ctx=NUM_CTX,
+    )
 
     def format_docs(docs):
         return "\n\n".join(doc.page_content for doc in docs)
@@ -74,7 +86,7 @@ def _generate(question: str, docs, llm, prompt_template: str) -> str:
     )
 
 
-def _retrieve_sku(vector_store, question: str, sku: str) -> list:
+def _retrieve_sku(vector_store, question: str, sku: str, k: int | None = None) -> list:
     target = sku.strip().upper()
 
     def matches(metadata: dict) -> bool:
@@ -83,10 +95,21 @@ def _retrieve_sku(vector_store, question: str, sku: str) -> list:
     fetch_k = int(getattr(vector_store.index, "ntotal", 0) or 0) or 20
     return vector_store.similarity_search(
         question,
-        k=TOP_K,
+        k=k if k is not None else TOP_K,
         filter=matches,
         fetch_k=fetch_k,
     )
+
+
+def _select_sku_context(vector_store, question: str, sku: str) -> tuple[list, dict]:
+    all_docs = sku_docs_in_index_order(vector_store, sku)
+    _, preview = choose_sku_docs(question, all_docs, [])
+    similar: list = []
+    if preview["sku_context_fallback"]:
+        similar = _retrieve_sku(
+            vector_store, question, sku, k=SKU_FALLBACK_K
+        )
+    return choose_sku_docs(question, all_docs, similar)
 
 
 def _product_label(ref) -> str:
@@ -102,7 +125,9 @@ def _product_label(ref) -> str:
 def run_baseline(question: str, resources, router_v2: bool | None = None) -> dict:
     answer = resources.chain.invoke(question)
     source_docs = resources.retriever.invoke(question)
-    return build_response(question, answer, source_docs, router_v2=router_v2)
+    result = build_response(question, answer, source_docs, router_v2=router_v2)
+    result.update(prompt_stats_for_docs(question, source_docs, PROMPT_TEMPLATE))
+    return result
 
 
 def run_product_aware(
@@ -112,11 +137,17 @@ def run_product_aware(
     plan = index.plan(question)
     product_label = ""
     source_docs: list = []
+    prompt_stats: dict = {}
 
     if plan.action == "clarify":
         answer = plan.clarify_text
+        prompt_stats = prompt_stats_for_docs(
+            question, source_docs, PROMPT_TEMPLATE_PRODUCT_AWARE
+        )
     elif plan.action == "filtered" and plan.ref.sku:
-        source_docs = _retrieve_sku(resources.vector_store, question, plan.ref.sku)
+        source_docs, prompt_stats = _select_sku_context(
+            resources.vector_store, question, plan.ref.sku
+        )
         answer = _generate(
             question,
             source_docs,
@@ -132,12 +163,16 @@ def run_product_aware(
             resources.llm,
             PROMPT_TEMPLATE_PRODUCT_AWARE,
         )
+        prompt_stats = prompt_stats_for_docs(
+            question, source_docs, PROMPT_TEMPLATE_PRODUCT_AWARE
+        )
 
     result = build_response(question, answer, source_docs, router_v2=router_v2)
     result["product_label"] = product_label
     result["query_action"] = plan.action
     result["resolved_sku"] = plan.ref.sku
     result["resolved_kind"] = plan.ref.kind
+    result.update(prompt_stats)
     return result
 
 

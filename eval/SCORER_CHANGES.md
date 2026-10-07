@@ -34,6 +34,12 @@ Audited every answerable and confusion row with `numeric_match` false on the `/t
 - **Change:** `DECLINE_PATTERNS` includes `does not list`. Bare `lbs` / `lbs.` is extracted as a quantity so "11.5 lbs" counts under the existing hedged rule.
 - **Smoke test:** `test_una01_does_not_list_is_hedged_decline`.
 
+## Decline phrasing consolidated (una-06)
+
+- **Why:** Run 3 una-06 said the TDS "does not specify whether Advance Satin 792 is available on Amazon" with no numeric specification. That is the system-prompt decline in different words, but `DECLINE_PATTERNS` only had some of those wordings (`does not list`, `does not contain`, `no information …`), so the row failed `no_decline`.
+- **Change:** One documented `DECLINE_PATTERNS` list covering the prompt and observed model phrasing: cannot provide, does not list, does not specify, does not include, does not mention, does not contain, does not provide, not provided, not listed, not available in the provided, no information, plus "not in the provided context". The hedged rule is unchanged: a decline phrase plus a number-with-unit still fails. Applied uniformly to every rescoreable run; not tuned per question.
+- **Smoke tests:** `test_una06_does_not_specify_is_decline_and_passes`, `test_ordinary_spec_answer_is_not_a_decline`.
+
 ## lbs per gallon is VOC, not mass (conf-07a)
 
 - **Why:** After una-01 added bare `lbs` extraction, conf-07a's "3.29 lbs. per gallon" was captured as `mass_lbs` (`3.29 lbs.`) and flagged unsupported even though the V133 chunk has "3.29 Lbs./Gallon" in the VOC family. Slash forms (`lbs./gal`) already mapped to VOC; "lbs. per gallon" did not, so the shorter bare-`lbs` alternative won.
