@@ -10,7 +10,7 @@ import streamlit as st
 
 from config import VECTOR_STORE_PATH
 from rag import load_vector_store, run_query
-from safety_router import SDS_SEARCH_URL, SAFETY_NOTICE
+from safety_router import SAFETY_NOTICE
 
 
 def render_sources(source_docs) -> None:
@@ -29,9 +29,6 @@ def render_sources(source_docs) -> None:
 def render_response(result: dict) -> None:
     if result["safety_routed"]:
         st.warning(SAFETY_NOTICE)
-        st.markdown(
-            f"[Search Benjamin Moore SDS documentation]({SDS_SEARCH_URL})"
-        )
         st.success("Secondary context from Technical Data Sheet")
     else:
         st.success("Answer")
