@@ -143,6 +143,7 @@ streamlit run app.py
 - *"What sheens are available for Regal Select Interior?"*
 - *"What is the minimum application temperature for exterior products?"*
 - *"How many square feet does a gallon of Ben Interior cover?"*
+- *"Is Aura Interior paint safe around pets?"* (routes to the SDS)
 
 ---
 
@@ -186,6 +187,24 @@ The prompt instructs the model to say so when the retrieved documents
 don't contain the answer. A system that says "I don't know" is safer 
 than one that confidently answers incorrectly. How consistently the 
 model follows this instruction should be confirmed by evaluation.
+
+**6. Safety question routing**
+A rule-based router flags questions that match whole words or phrases 
+such as hazard, PPE, flammable, pets, and safe to use. When it 
+triggers, the assistant first shows a fixed notice that Technical Data 
+Sheets are not the authoritative source for safety information and that 
+staff should consult the Safety Data Sheet (SDS) for the specific 
+product and base. It then links to Benjamin Moore's documentation 
+search rather than naming a single SDS file. SDSs carry the OSHA 
+hazard classifications, and they are issued per base and colorant, so 
+guessing one sheet would be wrong. Any TDS-derived answer is shown 
+only after that notice, labeled as secondary context.
+
+The keyword rule misses paraphrased safety questions (for example 
+"well-ventilated" does not match "ventilation"). It can also 
+over-trigger on words like "safety" in product names if that term is 
+added to the list. Both cases are documented in 
+`tests/test_safety_router.py`.
 
 ---
 
