@@ -6,3 +6,10 @@ __pycache__/
 .env
 *.faiss
 *.pkl
+
+cleaned_texts/
+*.pdf
+pdfs/
+faiss_index/
+*.faiss
+*.pkl
