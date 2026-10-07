@@ -4,72 +4,13 @@ Runs locally using Ollama (no data leaves your machine)
 Built on: LangChain + FAISS + nomic-embed-text + Gemma 3
 """
 
-import streamlit as st
 from pathlib import Path
-from langchain_ollama import OllamaEmbeddings, ChatOllama
-from langchain_community.vectorstores import FAISS
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
 
-from safety_router import SDS_SEARCH_URL, SAFETY_NOTICE, build_response
+import streamlit as st
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-VECTOR_STORE_PATH = "vector_store"
-EMBEDDING_MODEL   = "nomic-embed-text"
-CHAT_MODEL        = "gemma3:4b"
-TOP_K_RESULTS     = 4
-
-def load_resources():
-    """Load the vector store and build the RAG chain. Cached after first load."""
-    if not Path(VECTOR_STORE_PATH).exists():
-        return None, None
-
-    embeddings   = OllamaEmbeddings(model=EMBEDDING_MODEL)
-    vector_store = FAISS.load_local(
-        VECTOR_STORE_PATH,
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
-    retriever = vector_store.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": TOP_K_RESULTS}
-    )
-
-    prompt = PromptTemplate.from_template("""You are a knowledgeable assistant \
-for Benjamin Moore paint products. Use the provided Technical Data Sheet \
-excerpts to answer the question accurately and concisely.
-
-If the answer is not in the provided context, say so clearly rather than \
-guessing. Always cite which product the information comes from.
-
-Context from Technical Data Sheets:
-{context}
-
-Question: {question}
-
-Answer:""")
-
-    llm = ChatOllama(model=CHAT_MODEL, temperature=0.1)
-
-    def format_docs(docs):
-        return "\n\n".join(doc.page_content for doc in docs)
-
-    chain = (
-        {"context": retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
-
-    return chain, retriever
-
-
-def run_query(question: str, chain, retriever) -> dict:
-    """Run retrieval and generation; return a response object for UI and eval."""
-    answer = chain.invoke(question)
-    source_docs = retriever.invoke(question)
-    return build_response(question, answer, source_docs)
+from config import VECTOR_STORE_PATH
+from rag import load_vector_store, run_query
+from safety_router import SDS_SEARCH_URL, SAFETY_NOTICE
 
 
 def render_sources(source_docs) -> None:
@@ -125,7 +66,7 @@ def main() -> None:
         icon="🔒"
     )
 
-    cached_load = st.cache_resource(load_resources)
+    cached_load = st.cache_resource(load_vector_store)
 
     if not Path(VECTOR_STORE_PATH).exists():
         st.error(

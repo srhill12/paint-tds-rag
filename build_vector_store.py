@@ -10,13 +10,14 @@ from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-CLEANED_TEXTS_DIR = Path("cleaned_texts")
-VECTOR_STORE_PATH = "vector_store"
-MANIFEST_PATH     = Path("sources") / "manifest.csv"
-EMBEDDING_MODEL   = "nomic-embed-text"
-CHUNK_SIZE        = 500
-CHUNK_OVERLAP     = 50
+from config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    CLEANED_TEXTS_DIR,
+    EMBEDDING_MODEL,
+    MANIFEST_PATH,
+    VECTOR_STORE_PATH,
+)
 
 def load_manifest(path: Path) -> list[dict[str, str]]:
     """Return manifest rows in file order."""

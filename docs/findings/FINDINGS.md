@@ -70,3 +70,19 @@ Observed failures and notable behavior, recorded as found. Each finding links to
 - Confirms: Governance Decision 6 limitation that keyword routing misses paraphrased safety questions.
 - Status: Open. Router terms deliberately not tuned before the baseline. Paraphrased safety questions will be added to the eval; any term-list expansion will be reported as a measured change. Product-reference detection (Phase 4) addresses the unspecified product.
 - Evidence: screenshots/F-005-paraphrased-safety-miss.png
+
+### Further resolution of F-004 (from eval draft run, 2026-10-07)
+
+- The eval logged all retrieved chunks for this query (retrieved SKUs in rank order: 263, 261, 328/C328, V440). A retrieved non-Regal sheet states verbatim that the product dries tack free in 2 hours and can be recoated in 8 hours.
+- Conclusion: misattribution, not fabrication. The model presented another product's real values as Regal Select's. The earlier hand check (no Regal Select sheet states an 8-hour recoat) still holds.
+- F-002 shows the same pattern: the offered 49 g/L VOC value is real text from a retrieved sheet for a different product.
+- Implication: checking that a value appears in any retrieved chunk does not detect this failure. The eval adds a source-correct check: the value must appear in a chunk from the product the question names.
+- Source-correct scoring identified the attesting sheet for F-004's values as V440 (Corotech Waterborne Amine Epoxy), an industrial epoxy, presented in the answer as Regal Select's dry time.
+
+## F-006: Answer accuracy overstated by coincidental value matches (eval draft, 2026-10-07)
+
+- Observed: In the draft eval, 4 of 16 answerable questions matched the expected value. In all 4, the target product's sheet was not retrieved; the matching values came from other products' sheets (ans-01 from TRC-035 and 34 Line, ans-02 from 046, 532, N484, N485, ans-11 from N455, ans-16 from 262).
+- Cause: common specification values (1 hour, 4 hours, 50 F, 49 g/L) appear on many sheets, so a correct number can come from the wrong product.
+- Source-correct accuracy (value attested by the target product's chunk): 0 of 16 answerable at draft baseline.
+- Implication: numeric answer accuracy alone overstates correctness. The eval reports both, and source-correct accuracy is the primary metric.
+- Status: Draft figures, pending ground-truth verification. Retrieval of the target sheet is the bottleneck addressed by Phase 4.

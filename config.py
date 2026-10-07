@@ -1,0 +1,37 @@
+"""Shared runtime settings for the app and the evaluation harness."""
+
+from pathlib import Path
+
+# ChatOllama previously used temperature=0.1 in app.py. Eval and the app
+# now use 0 with a fixed seed so runs are reproducible.
+CHAT_MODEL = "gemma3:4b"
+EMBEDDING_MODEL = "nomic-embed-text"
+TEMPERATURE = 0.0
+PRIOR_TEMPERATURE = 0.1
+SEED = 42
+TOP_K = 4
+
+CHUNK_SIZE = 500
+CHUNK_OVERLAP = 50
+
+VECTOR_STORE_PATH = "vector_store"
+MANIFEST_PATH = Path("sources") / "manifest.csv"
+CLEANED_TEXTS_DIR = Path("cleaned_texts")
+
+TESTSET_VERSION = "v1"
+TESTSET_PATH = Path("eval") / "testset_v1.jsonl"
+RESULTS_DIR = Path("eval") / "results"
+
+PROMPT_TEMPLATE = """You are a knowledgeable assistant \
+for Benjamin Moore paint products. Use the provided Technical Data Sheet \
+excerpts to answer the question accurately and concisely.
+
+If the answer is not in the provided context, say so clearly rather than \
+guessing. Always cite which product the information comes from.
+
+Context from Technical Data Sheets:
+{context}
+
+Question: {question}
+
+Answer:"""
