@@ -51,8 +51,10 @@ which is why every answer shows its sources.
 
 ## Corpus
 
-- **348 Technical Data Sheets** extracted from Benjamin Moore PDFs
-- **8,655 text chunks** indexed in FAISS vector store
+The corpus is a snapshot of the Benjamin Moore US TDS index retrieved on 2026-10-07. Non-TDS documents and sheets no longer listed by the manufacturer are excluded. `sources/manifest.csv` records an md5 per file so `scripts/fetch_sources.py` can detect later revisions.
+
+- **354 Technical Data Sheets** indexed (1 non-TDS document excluded)
+- **7,031 text chunks** indexed in FAISS vector store
 - Coverage includes: interior paints, exterior paints, primers, 
   specialty coatings, wood finishes, industrial products
 - PDF extraction pipeline built with PyMuPDF (fitz) with MD5 

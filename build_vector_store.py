@@ -3,7 +3,7 @@ Build Vector Store from Benjamin Moore Technical Data Sheets
 Runs once to index all cleaned TDS documents using Ollama embeddings + FAISS.
 """
 
-import os
+import csv
 from pathlib import Path
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -13,33 +13,60 @@ from langchain_core.documents import Document
 # ── Configuration ─────────────────────────────────────────────────────────────
 CLEANED_TEXTS_DIR = Path("cleaned_texts")
 VECTOR_STORE_PATH = "vector_store"
+MANIFEST_PATH     = Path("sources") / "manifest.csv"
 EMBEDDING_MODEL   = "nomic-embed-text"
 CHUNK_SIZE        = 500
 CHUNK_OVERLAP     = 50
 
-def load_documents(directory: Path) -> list[Document]:
-    """Load all .txt TDS files from the cleaned_texts directory."""
-    documents = []
-    files = list(directory.glob("*.txt"))
-    print(f"Found {len(files)} TDS documents to index...")
+def load_manifest(path: Path) -> list[dict[str, str]]:
+    """Return manifest rows in file order."""
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return [
+            row for row in csv.DictReader(handle)
+            if (row.get("filename") or "").strip()
+        ]
 
-    for filepath in files:
+
+def load_documents(directory: Path) -> tuple[list[Document], int, int]:
+    """Load cleaned texts for current-index TDS rows; skip NON_TDS."""
+    documents = []
+    excluded = 0
+    rows = load_manifest(MANIFEST_PATH)
+    print(f"Found {len(rows)} manifest rows...")
+
+    for row in rows:
+        pdf_name = (row.get("filename") or "").strip()
+        if (row.get("classification") or "").strip() == "NON_TDS":
+            excluded += 1
+            continue
+        filepath = directory / (Path(pdf_name).stem + ".txt")
+        if not filepath.exists():
+            print(f"  Missing text for {pdf_name}")
+            continue
         try:
             text = filepath.read_text(encoding="utf-8", errors="ignore")
             if text.strip():
+                product_name = (row.get("product_name") or "").strip()
+                sku = (row.get("sku") or "").strip()
+                discontinued = (row.get("discontinued") or "false").strip().lower() == "true"
                 doc = Document(
                     page_content=text,
                     metadata={
                         "source": filepath.name,
-                        "product": filepath.stem
+                        "product": product_name or filepath.stem,
+                        "filename": pdf_name,
+                        "sku": sku,
+                        "product_name": product_name,
+                        "discontinued": discontinued,
                     }
                 )
                 documents.append(doc)
         except Exception as e:
             print(f"  Skipping {filepath.name}: {e}")
 
-    print(f"Loaded {len(documents)} documents successfully.")
-    return documents
+    return documents, len(documents), excluded
 
 def split_documents(documents: list[Document]) -> list[Document]:
     """Split documents into chunks for embedding."""
@@ -49,7 +76,6 @@ def split_documents(documents: list[Document]) -> list[Document]:
         separators=["\n\n", "\n", ".", " "]
     )
     chunks = splitter.split_documents(documents)
-    print(f"Split into {len(chunks)} chunks (chunk_size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})")
     return chunks
 
 def build_vector_store(chunks: list[Document]) -> FAISS:
@@ -60,7 +86,22 @@ def build_vector_store(chunks: list[Document]) -> FAISS:
     print("Building FAISS vector store...")
     print("This may take several minutes for 200+ documents...")
 
-    vector_store = FAISS.from_documents(chunks, embeddings)
+    # Ollama rejects a single embed request covering the full corpus.
+    batch_size = 32
+    texts = [doc.page_content for doc in chunks]
+    metadatas = [doc.metadata for doc in chunks]
+    vectors: list[list[float]] = []
+    for start in range(0, len(texts), batch_size):
+        batch = texts[start:start + batch_size]
+        vectors.extend(embeddings.embed_documents(batch))
+        done = min(start + batch_size, len(texts))
+        print(f"  Embedded {done}/{len(texts)}")
+
+    vector_store = FAISS.from_embeddings(
+        list(zip(texts, vectors)),
+        embeddings,
+        metadatas=metadatas,
+    )
     return vector_store
 
 def main():
@@ -72,13 +113,16 @@ def main():
     print()
 
     # Load documents
-    documents = load_documents(CLEANED_TEXTS_DIR)
+    documents, indexed, excluded = load_documents(CLEANED_TEXTS_DIR)
     if not documents:
         print("No documents found. Check cleaned_texts/ directory.")
         return
 
     # Split into chunks
     chunks = split_documents(documents)
+    print(f"Documents indexed: {indexed}")
+    print(f"Documents excluded: {excluded}")
+    print(f"Chunks created: {len(chunks)}")
 
     # Build vector store
     vector_store = build_vector_store(chunks)
